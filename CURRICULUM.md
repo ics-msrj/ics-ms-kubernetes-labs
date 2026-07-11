@@ -91,10 +91,9 @@ Every module directory follows the same shape and every README follows the same 
 **Objective**: move from manual `kubectl apply` to Git-reconciled delivery.
 **Topics**: ArgoCD (chart 10.1.3, `server.insecure` + Gateway exposure, bcrypt admin password generated via an ephemeral `httpd:alpine` pod); App-of-Apps (`gitops/root-app.yaml` → `gitops/apps/` managing Module 10's Helm chart and Kustomize dev overlay); `selfHeal` proven live in `verify.sh` (manual drift, watched to be reverted); `ignoreDifferences` for the redis-cart Secret (the real secrets-vs-GitOps tension, not glossed over); GitLab CI (primary) + GitHub Actions (mirror) validating the chart/overlays/scripts on every push.
 
-### Module 12 — Progressive Delivery
+### Module 12 — Progressive Delivery ✅
 **Objective**: ship changes with automated risk mitigation instead of a single big-bang rollout.
-**Topics**: Argo Rollouts, canary, blue-green, automated analysis.
-*Detailed lab content: not started.*
+**Topics**: Argo Rollouts (chart 2.41.0) targeting the original `online-boutique` namespace (kept separate from Module 11's ArgoCD-managed namespaces on purpose, to avoid fighting `selfHeal`); `frontend` → canary Rollout with a Prometheus `AnalysisTemplate` (honest metric: container restarts, since no request-level metrics exist); `productcatalogservice` → blue-green Rollout (active+preview Service, manual promotion); Module 07's HPA retargeted from `Deployment` to `Rollout`; `verify.sh` triggers real revisions and watches both strategies actually behave correctly, not just checking object existence.
 
 ### Module 13 — Cluster Operations
 **Objective**: operate the cluster itself — the things a managed service would normally hide.

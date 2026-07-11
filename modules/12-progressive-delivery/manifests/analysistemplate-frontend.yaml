@@ -1,0 +1,24 @@
+# Deliberately honest about what this cluster can actually measure: Online
+# Boutique's services expose no /metrics endpoint (no request-level golden
+# signals — see Module 08's README), so "canary error rate" isn't a metric
+# that exists here. What genuinely exists, from kube-state-metrics (Module
+# 08), is container restart counts — a real, if coarser, signal: a canary
+# that's crash-looping should never reach 100% traffic. A production setup
+# with instrumented services would swap this query for a request-success-
+# rate one; the AnalysisTemplate mechanism itself doesn't change.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: frontend-no-restarts
+  namespace: online-boutique
+spec:
+  metrics:
+    - name: no-restarts-during-canary
+      interval: 30s
+      successCondition: result == 0
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090
+          query: |
+            sum(increase(kube_pod_container_status_restarts_total{namespace="online-boutique", pod=~"frontend-.*"}[2m]))

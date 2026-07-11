@@ -1,0 +1,105 @@
+# Blue-green instead of canary: productcatalogservice gets no gradual
+# traffic exposure at all — a new version is fully staged behind
+# `productcatalogservice-preview`, verified there, then cut over to
+# `productcatalogservice` (the name every other service already calls) in
+# one instant switch. Argo Rollouts manages both Services' selectors at
+# runtime (adding a revision-specific label match) — the Service objects
+# below only need the same base `app: productcatalogservice` selector every
+# other module's Service definitions use.
+#
+# autoPromotionEnabled: false is deliberate: promotion is a decision
+# (`kubectl argo rollouts promote productcatalogservice`), not automatic —
+# see the Lab section for why that's the point of blue-green here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: productcatalogservice
+  labels:
+    app: productcatalogservice
+spec:
+  type: ClusterIP
+  selector:
+    app: productcatalogservice
+  ports:
+    - name: grpc
+      port: 3550
+      targetPort: 3550
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: productcatalogservice-preview
+  labels:
+    app: productcatalogservice
+spec:
+  type: ClusterIP
+  selector:
+    app: productcatalogservice
+  ports:
+    - name: grpc
+      port: 3550
+      targetPort: 3550
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: productcatalogservice
+  namespace: online-boutique
+  labels:
+    app: productcatalogservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: productcatalogservice
+  strategy:
+    blueGreen:
+      activeService: productcatalogservice
+      previewService: productcatalogservice-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 30
+  template:
+    metadata:
+      labels:
+        app: productcatalogservice
+    spec:
+      serviceAccountName: productcatalogservice
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            privileged: false
+            readOnlyRootFilesystem: true
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.5
+          ports:
+            - containerPort: 3550
+          # envFrom, not an inline DISABLE_PROFILER value — this service has
+          # used Module 03's shared ConfigMap since that module ran; a plain
+          # Deployment->Rollout swap shouldn't quietly regress that.
+          envFrom:
+            - configMapRef:
+                name: online-boutique-shared-config
+          env:
+            - name: PORT
+              value: "3550"
+          readinessProbe:
+            grpc:
+              port: 3550
+          livenessProbe:
+            grpc:
+              port: 3550
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

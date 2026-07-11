@@ -42,7 +42,7 @@ See [`workloads/online-boutique/`](workloads/online-boutique/) for how it's vend
 | 09 | [Logging](modules/09-logging/) | Intermediate | ✅ |
 | 10 | [Package Management](modules/10-package-management/) | Intermediate | ✅ |
 | 11 | [GitOps & CI/CD](modules/11-gitops-cicd/) | Advanced | ✅ |
-| 12 | [Progressive Delivery](modules/12-progressive-delivery/) | Advanced | ⬜ |
+| 12 | [Progressive Delivery](modules/12-progressive-delivery/) | Advanced | ✅ |
 | 13 | [Cluster Operations](modules/13-cluster-operations/) | Advanced | ⬜ |
 | 14 | [Multi-Cluster Management](modules/14-multi-cluster-mgmt/) | Advanced | ⬜ |
 | 15 | [Multi-Tenancy & Cost](modules/15-multi-tenancy-cost/) | Advanced | ⬜ |

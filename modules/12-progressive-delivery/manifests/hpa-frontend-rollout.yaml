@@ -1,0 +1,26 @@
+# Module 07's hpa-frontend.yaml targets `kind: Deployment` — once frontend
+# becomes a Rollout, that reference dangles (the Deployment named "frontend"
+# no longer exists) and the HPA silently stops doing anything useful. Argo
+# Rollouts implements the same /scale subresource a Deployment does, so HPA
+# can target a Rollout directly — this is the same HPA, retargeted, not a
+# new one. HPA still owns total replica count; the Rollout's canary/blue-
+# green logic only decides how that count splits across revisions.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend
+  namespace: online-boutique
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
