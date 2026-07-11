@@ -1,0 +1,31 @@
+# The App-of-Apps root — the one object this repo's GitOps setup applies
+# imperatively (`kubectl apply`, done once by modules/11-gitops-cicd/scripts/
+# setup.sh). Everything else — the two child Applications in gitops/apps/ —
+# is then reconciled by ArgoCD from Git, not by any script.
+#
+# __GITOPS_REPO_URL__ and __GITOPS_REPO_REVISION__ are substituted by
+# setup.sh at apply time (this file itself stays a template in Git — unlike
+# gitops/apps/*.yaml, which ArgoCD reads directly from Git and therefore
+# must contain the real repo URL, not a placeholder).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: __GITOPS_REPO_URL__
+    targetRevision: __GITOPS_REPO_REVISION__
+    path: gitops/apps
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -87,10 +87,9 @@ Every module directory follows the same shape and every README follows the same 
 **Objective**: package Online Boutique for repeatable delivery.
 **Topics**: `charts/online-boutique/` — a real Helm chart, 9 services templated via one `range`-looped template over `values.services`, frontend/loadgenerator/redis-cart special-cased; deployed to `online-boutique-packaged` (zero risk to the live `online-boutique` namespace). `kustomize/base` (Kustomize's `helmCharts` inflator) + `overlays/dev|staging|prod` — dev deployed live to `online-boutique-dev`, staging/prod render-and-diff only.
 
-### Module 11 — GitOps & CI/CD
+### Module 11 — GitOps & CI/CD ✅
 **Objective**: move from manual `kubectl apply` to Git-reconciled delivery.
-**Topics**: ArgoCD, App-of-Apps, a CI pipeline.
-*Detailed lab content: not started.*
+**Topics**: ArgoCD (chart 10.1.3, `server.insecure` + Gateway exposure, bcrypt admin password generated via an ephemeral `httpd:alpine` pod); App-of-Apps (`gitops/root-app.yaml` → `gitops/apps/` managing Module 10's Helm chart and Kustomize dev overlay); `selfHeal` proven live in `verify.sh` (manual drift, watched to be reverted); `ignoreDifferences` for the redis-cart Secret (the real secrets-vs-GitOps tension, not glossed over); GitLab CI (primary) + GitHub Actions (mirror) validating the chart/overlays/scripts on every push.
 
 ### Module 12 — Progressive Delivery
 **Objective**: ship changes with automated risk mitigation instead of a single big-bang rollout.

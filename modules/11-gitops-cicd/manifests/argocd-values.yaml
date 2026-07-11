@@ -1,0 +1,16 @@
+# Static Helm values for ArgoCD — the admin password (bcrypt hash) is
+# runtime-generated and passed separately via --set-string in setup.sh,
+# never committed here.
+configs:
+  params:
+    # ArgoCD terminates its own TLS by default. We terminate TLS at the
+    # Gateway instead (cert-manager, same as Module 08's Grafana) and let
+    # argocd-server speak plain HTTP behind it — this is ArgoCD's own
+    # documented pattern for running behind an ingress/gateway that already
+    # handles TLS, not a security downgrade.
+    server.insecure: true
+  cm:
+    # ArgoCD's own repo-server runs `kustomize build` internally — without
+    # this, it has no idea our overlays' helmCharts inflation (Module 10)
+    # needs --enable-helm, and would fail to render online-boutique-dev.
+    kustomize.buildOptions: "--enable-helm --load-restrictor LoadRestrictionsNone"

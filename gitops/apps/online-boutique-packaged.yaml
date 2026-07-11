@@ -1,0 +1,43 @@
+# Child Application #1 — Helm source. Adopts the exact release Module 10's
+# setup.sh created by hand (`helm install online-boutique
+# charts/online-boutique -n online-boutique-packaged`) — same chart, same
+# release name, same namespace. From here on, ArgoCD reconciles it instead
+# of anyone running `helm upgrade` by hand.
+#
+# ignoreDifferences on the redis-cart-credentials Secret is deliberate, not
+# an oversight: this Application's Helm values don't set redisCart.password,
+# so without this, ArgoCD would want to overwrite the real random password
+# Module 10 generated with the chart's committed placeholder default on
+# every sync. This is the same secrets-in-GitOps tension Module 03 solved
+# with Sealed Secrets — a fully GitOps-native version of this Application
+# would source the password from a SealedSecret committed alongside it
+# instead of a Helm value at all.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: online-boutique-packaged
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: __GITOPS_REPO_URL__
+    targetRevision: __GITOPS_REPO_REVISION__
+    path: charts/online-boutique
+    helm:
+      releaseName: online-boutique
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: online-boutique-packaged
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: redis-cart-credentials
+      jsonPointers:
+        - /data
+        - /stringData

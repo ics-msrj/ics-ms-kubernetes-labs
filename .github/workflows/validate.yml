@@ -1,0 +1,49 @@
+name: validate
+# Mirrors .gitlab-ci.yml (GitLab is this repo's primary remote — see
+# lab.env.example) so the GitHub mirror shows the same green checks.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # -S error: see the comment in .gitlab-ci.yml — this repo verified
+      # zero error-severity findings before adding this gate.
+      - run: shellcheck -S error modules/*/scripts/*.sh
+
+  yaml-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet pyyaml
+      - run: |
+          find modules workloads charts gitops -name '*.yaml' -not -path '*/templates/*' -print0 |
+          xargs -0 -n1 python3 -c "
+          import sys, yaml
+          list(yaml.safe_load_all(open(sys.argv[1])))
+          "
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint charts/online-boutique
+      - run: helm template charts/online-boutique --set redisCart.password=ci-placeholder > /dev/null
+
+  kustomize-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: |
+          curl -fsSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- /usr/local/bin
+      - run: |
+          for env in dev staging prod; do
+            echo "=== kustomize/overlays/${env} ==="
+            kustomize build "kustomize/overlays/${env}" --enable-helm --helm-command helm --load-restrictor LoadRestrictionsNone > /dev/null
+          done

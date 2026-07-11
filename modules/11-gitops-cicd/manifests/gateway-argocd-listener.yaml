@@ -1,0 +1,57 @@
+# Extends the Gateway again — same reasoning as Module 08's
+# gateway-grafana-listener.yaml, and the same caveat: this is the FULL
+# listener set (Module 04's http/https + Module 08's https-grafana + this
+# module's https-argocd), because kubectl apply's 3-way merge replaces the
+# whole listeners list, not just appends to it. __TLS_ISSUER__ and
+# __ARGOCD_DOMAIN__ are substituted by setup.sh.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: online-boutique
+  annotations:
+    cert-manager.io/cluster-issuer: __TLS_ISSUER__
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: frontend-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-grafana
+      protocol: HTTPS
+      port: 443
+      hostname: __GRAFANA_DOMAIN__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: grafana-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-argocd
+      protocol: HTTPS
+      port: 443
+      hostname: __ARGOCD_DOMAIN__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: argocd-tls
+      allowedRoutes:
+        namespaces:
+          from: All

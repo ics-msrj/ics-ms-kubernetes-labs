@@ -41,7 +41,7 @@ See [`workloads/online-boutique/`](workloads/online-boutique/) for how it's vend
 | 08 | [Observability](modules/08-observability/) | Intermediate | ✅ |
 | 09 | [Logging](modules/09-logging/) | Intermediate | ✅ |
 | 10 | [Package Management](modules/10-package-management/) | Intermediate | ✅ |
-| 11 | [GitOps & CI/CD](modules/11-gitops-cicd/) | Advanced | ⬜ |
+| 11 | [GitOps & CI/CD](modules/11-gitops-cicd/) | Advanced | ✅ |
 | 12 | [Progressive Delivery](modules/12-progressive-delivery/) | Advanced | ⬜ |
 | 13 | [Cluster Operations](modules/13-cluster-operations/) | Advanced | ⬜ |
 | 14 | [Multi-Cluster Management](modules/14-multi-cluster-mgmt/) | Advanced | ⬜ |
@@ -91,6 +91,11 @@ Each module's README is self-contained: read it, run `setup.sh`, run `verify.sh`
 ├── kustomize/
 │   ├── base/                  # inflates charts/online-boutique
 │   └── overlays/               # dev, staging, prod (Module 10)
+├── gitops/
+│   ├── root-app.yaml           # App-of-Apps root (Module 11)
+│   └── apps/                   # child Applications ArgoCD reads from Git
+├── .gitlab-ci.yml              # primary CI (Module 11)
+├── .github/workflows/          # mirrored CI on the GitHub remote
 ├── scripts/                   # cross-module helpers (status, resume, global destroy)
 └── docs/                      # failure-simulation matrix, assessment checklists, diagrams
 ```

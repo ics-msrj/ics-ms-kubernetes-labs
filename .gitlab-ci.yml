@@ -1,0 +1,60 @@
+# Validates exactly what this repo's GitOps pipeline depends on: the shell
+# scripts every module ships, the Helm chart Module 10 authored, and the
+# Kustomize overlays ArgoCD (Module 11) reconciles from. Nothing here
+# touches a real cluster — that's what each module's own verify.sh is for.
+stages:
+  - lint
+  - validate
+
+shellcheck:
+  stage: lint
+  image: koalaman/shellcheck-alpine:stable
+  script:
+    # -S error: this repo deliberately uses patterns shellcheck flags at
+    # warning/info/style (A && B || C for compact PASS/FAIL reporting,
+    # colour vars unused in scripts with no error-level message, etc.) —
+    # verified zero actual `error`-severity findings across every script
+    # before adding this gate. Failing the build on style preference isn't
+    # this job's purpose; catching real bugs is.
+    - shellcheck -S error modules/*/scripts/*.sh
+
+helm-lint:
+  stage: lint
+  image: alpine/helm:3.14.4
+  script:
+    - helm lint charts/online-boutique
+
+yaml-syntax:
+  stage: lint
+  image: python:3-alpine
+  before_script:
+    - pip install --quiet pyyaml
+  script:
+    # charts/*/templates/ excluded on purpose: those are Go templates, not
+    # plain YAML, until Helm renders them — the helm-lint/helm-template jobs
+    # below are what actually validate them.
+    - >
+      find modules workloads charts gitops -name '*.yaml' -not -path '*/templates/*' -print0 |
+      xargs -0 -n1 python3 -c "
+      import sys, yaml
+      list(yaml.safe_load_all(open(sys.argv[1])))
+      " || (echo "YAML syntax error above" && exit 1)
+
+kustomize-build:
+  stage: validate
+  image: alpine/helm:3.14.4
+  before_script:
+    - apk add --no-cache curl
+    - curl -fsSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- /usr/local/bin
+  script:
+    - |
+      for env in dev staging prod; do
+        echo "=== kustomize/overlays/${env} ==="
+        kustomize build "kustomize/overlays/${env}" --enable-helm --helm-command helm --load-restrictor LoadRestrictionsNone > /dev/null
+      done
+
+helm-template:
+  stage: validate
+  image: alpine/helm:3.14.4
+  script:
+    - helm template charts/online-boutique --set redisCart.password=ci-placeholder > /dev/null
