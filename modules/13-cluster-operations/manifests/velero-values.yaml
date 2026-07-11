@@ -1,0 +1,36 @@
+# Static Helm values for Velero. Credentials (MinIO root user/password,
+# generated fresh by setup.sh) are passed separately via --set-file, never
+# committed here.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.14.2
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+  - name: velero-plugin-for-csi
+    image: velero/velero-plugin-for-csi:v0.7.1
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+configuration:
+  # EnableCSI: use the VolumeSnapshot CRDs Module 05 already installed
+  # (external-snapshotter) to back up PV data — not the AWS plugin's own
+  # EBS-snapshot codepath, which is irrelevant here (MinIO isn't EBS, and
+  # this cluster isn't running on AWS at all). The AWS plugin above is only
+  # in play for its S3-compatible *object storage* client, talking to MinIO.
+  features: EnableCSI
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: velero-backups
+      default: true
+      config:
+        region: minio
+        s3Url: http://minio.velero.svc:9000
+        s3ForcePathStyle: "true"
+
+credentials:
+  useSecret: true

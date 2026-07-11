@@ -55,6 +55,10 @@ lab.env
 # cluster, so not committed. See modules/03-config-secrets/README.md.
 modules/*/generated/
 
+# etcd snapshots — real backups of your specific cluster's state, never
+# something to commit to a public repo.
+modules/*/backups/
+
 # ----- OS / editor cruft -----
 .DS_Store
 Thumbs.db

@@ -1,0 +1,15 @@
+# Restores into a DIFFERENT namespace than the backup came from
+# (namespaceMapping) — deliberately, so this drill proves the backup is
+# real and restorable without touching the actual online-boutique namespace
+# every other module depends on. Restoring in place (overwriting
+# online-boutique) is a one-line change to try yourself once you trust
+# this — see the README.
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: online-boutique-restore-drill
+  namespace: velero
+spec:
+  backupName: online-boutique-backup
+  namespaceMapping:
+    online-boutique: online-boutique-restore-drill

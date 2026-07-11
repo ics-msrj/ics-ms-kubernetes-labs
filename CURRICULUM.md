@@ -95,10 +95,9 @@ Every module directory follows the same shape and every README follows the same 
 **Objective**: ship changes with automated risk mitigation instead of a single big-bang rollout.
 **Topics**: Argo Rollouts (chart 2.41.0) targeting the original `online-boutique` namespace (kept separate from Module 11's ArgoCD-managed namespaces on purpose, to avoid fighting `selfHeal`); `frontend` → canary Rollout with a Prometheus `AnalysisTemplate` (honest metric: container restarts, since no request-level metrics exist); `productcatalogservice` → blue-green Rollout (active+preview Service, manual promotion); Module 07's HPA retargeted from `Deployment` to `Rollout`; `verify.sh` triggers real revisions and watches both strategies actually behave correctly, not just checking object existence.
 
-### Module 13 — Cluster Operations
+### Module 13 — Cluster Operations ✅
 **Objective**: operate the cluster itself — the things a managed service would normally hide.
-**Topics**: version upgrades, etcd backup/restore, Velero, node maintenance/draining.
-*Detailed lab content: not started.*
+**Topics**: risk-tiered — automated (etcd snapshot backup via `kubectl exec`/`kubectl cp`, no SSH or host etcdctl needed; MinIO + Velero with CSI snapshot integration backing up `online-boutique` and restoring into `online-boutique-restore-drill`, verified by comparing Deployment counts; a full node cordon/drain/uncordon cycle respecting Module 07's PDBs) vs. documented-manual-only (kubeadm version upgrade walkthrough, etcd restore drill — both deliberately not scripted given the risk of a scripted control-plane-availability operation going wrong unattended).
 
 ### Module 14 — Multi-Cluster Management
 **Objective**: manage more than one native cluster from a single control point.
