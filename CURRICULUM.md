@@ -99,10 +99,9 @@ Every module directory follows the same shape and every README follows the same 
 **Objective**: operate the cluster itself — the things a managed service would normally hide.
 **Topics**: risk-tiered — automated (etcd snapshot backup via `kubectl exec`/`kubectl cp`, no SSH or host etcdctl needed; MinIO + Velero with CSI snapshot integration backing up `online-boutique` and restoring into `online-boutique-restore-drill`, verified by comparing Deployment counts; a full node cordon/drain/uncordon cycle respecting Module 07's PDBs) vs. documented-manual-only (kubeadm version upgrade walkthrough, etcd restore drill — both deliberately not scripted given the risk of a scripted control-plane-availability operation going wrong unattended).
 
-### Module 14 — Multi-Cluster Management
+### Module 14 — Multi-Cluster Management ✅
 **Objective**: manage more than one native cluster from a single control point.
-**Topics**: Rancher (or equivalent), multi-cluster import, centralized RBAC.
-*Detailed lab content: not started.*
+**Topics**: a genuine second kubeadm cluster (1 control-plane + 1 worker, bootstrapped by reusing Module 01's scripts unmodified against new VMs); Rancher (chart 2.14.3, Gateway API mode with the `cilium` GatewayClass — Ingress-nginx retired March 2026, confirmed directly in the chart's own values comments); cluster import (deploying `cattle-cluster-agent`, a manual UI-driven step by design — Rancher's exact registration API wasn't something to automate without live verification); centralized RBAC as a layer above each cluster's own (Module 06).
 
 ### Module 15 — Multi-Tenancy & Cost
 **Objective**: run multiple teams/tenants on shared infrastructure with fair resource allocation and cost visibility.

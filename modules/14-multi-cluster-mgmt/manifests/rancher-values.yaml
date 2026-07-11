@@ -1,0 +1,22 @@
+# Static Helm values for Rancher. hostname is substituted by setup.sh.
+# Gateway API mode instead of the chart's Ingress default — consistent
+# with every other exposed service in this repo since Module 04, and
+# genuinely necessary now: ingress-nginx (the chart's other documented
+# path) retired in March 2026.
+networkExposure:
+  type: gateway
+
+gateway:
+  gatewayClass:
+    name: cilium
+    ports:
+      http: 80
+      https: 443
+  tls:
+    # Rancher generates and manages its own internal CA for this — no
+    # cert-manager/Let's Encrypt entanglement for what is, like Prometheus
+    # and Alertmanager (Module 08), an internal admin tool rather than a
+    # public-facing one.
+    source: rancher
+
+replicas: 1
