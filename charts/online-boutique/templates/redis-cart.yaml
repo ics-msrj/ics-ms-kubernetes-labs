@@ -1,0 +1,111 @@
+{{/*
+redis-cart as a StatefulSet with a PersistentVolumeClaim and Redis AUTH —
+the same shape Modules 02/03/05 built up incrementally by hand. Packaged
+here as one chart-managed unit instead. The Secret's password should always
+be overridden at install time (--set redisCart.password=...) — the chart
+default exists so `helm template`/`helm lint` don't fail on a required
+value, not because it's safe to use.
+*/}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-cart-credentials
+  labels:
+    {{- include "online-boutique.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  password: {{ .Values.redisCart.password | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cart
+  labels:
+    app: redis-cart
+    {{- include "online-boutique.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: redis-cart
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cart-headless
+  labels:
+    app: redis-cart
+    {{- include "online-boutique.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app: redis-cart
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cart
+  labels:
+    app: redis-cart
+    {{- include "online-boutique.labels" . | nindent 4 }}
+spec:
+  serviceName: redis-cart-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-cart
+  template:
+    metadata:
+      labels:
+        app: redis-cart
+    spec:
+      securityContext:
+        {{- toYaml .Values.securityContext.pod | nindent 8 }}
+      containers:
+        - name: redis
+          securityContext:
+            {{- toYaml .Values.securityContext.container | nindent 12 }}
+          image: redis:alpine
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-cart-credentials
+                  key: password
+          args:
+            - "--requirepass"
+            - "$(REDIS_PASSWORD)"
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          livenessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+          resources:
+            {{- toYaml .Values.redisCart.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.redisCart.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.redisCart.storageSize }}
+# cartservice itself is deliberately NOT defined here — it's a normal entry
+# in values.yaml's `services` list (see generic-service.yaml), just one
+# whose env includes a valueFrom pulling the Secret defined above.

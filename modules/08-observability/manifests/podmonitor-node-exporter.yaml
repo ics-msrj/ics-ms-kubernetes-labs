@@ -1,0 +1,20 @@
+# Scrapes the node-exporter DaemonSet Module 02 already deployed, directly
+# by pod label — no Service needed, which is exactly what PodMonitor is for
+# (as opposed to ServiceMonitor, which scrapes via a Service). This is also
+# why kube-prometheus-stack is installed with nodeExporter.enabled=false in
+# setup.sh: without that, its own node-exporter DaemonSet would try to bind
+# the same hostNetwork port 9100 on every node and collide with this one.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: node-exporter
+  namespace: online-boutique
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 30s

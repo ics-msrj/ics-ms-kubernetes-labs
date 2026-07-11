@@ -1,0 +1,163 @@
+# Values for the online-boutique chart — see templates/deployment.yaml,
+# service.yaml, serviceaccount.yaml for how `services` below drives one
+# template into 9 Deployments/Services/ServiceAccounts.
+
+image:
+  registry: us-central1-docker.pkg.dev/google-samples/microservices-demo
+  tag: v0.10.5
+
+securityContext:
+  pod:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 1000
+  container:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    privileged: false
+    readOnlyRootFilesystem: true
+
+# Each entry becomes one Deployment + Service + ServiceAccount, all named
+# `.name`. `servicePort` only needs setting when it differs from `port`
+# (emailservice is the one case: container listens on 8080, Service exposes
+# 5000 — reproduced faithfully from the upstream manifest, not simplified away).
+services:
+  - name: currencyservice
+    port: 7000
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    env:
+      - {name: PORT, value: "7000"}
+      - {name: DISABLE_PROFILER, value: "1"}
+
+  - name: productcatalogservice
+    port: 3550
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    env:
+      - {name: PORT, value: "3550"}
+      - {name: DISABLE_PROFILER, value: "1"}
+
+  - name: checkoutservice
+    port: 5050
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    env:
+      - {name: PORT, value: "5050"}
+      - {name: PRODUCT_CATALOG_SERVICE_ADDR, value: "productcatalogservice:3550"}
+      - {name: SHIPPING_SERVICE_ADDR, value: "shippingservice:50051"}
+      - {name: PAYMENT_SERVICE_ADDR, value: "paymentservice:50051"}
+      - {name: EMAIL_SERVICE_ADDR, value: "emailservice:5000"}
+      - {name: CURRENCY_SERVICE_ADDR, value: "currencyservice:7000"}
+      - {name: CART_SERVICE_ADDR, value: "cartservice:7070"}
+
+  - name: shippingservice
+    port: 50051
+    readinessPeriodSeconds: 5
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    env:
+      - {name: PORT, value: "50051"}
+      - {name: DISABLE_PROFILER, value: "1"}
+
+  - name: cartservice
+    port: 7070
+    readinessInitialDelaySeconds: 15
+    livenessInitialDelaySeconds: 15
+    livenessPeriodSeconds: 10
+    resources:
+      requests: {cpu: 200m, memory: 64Mi}
+      limits: {cpu: 300m, memory: 128Mi}
+    # Two env shapes in one list: a plain value, and a valueFrom pulling the
+    # password templates/redis-cart.yaml's Secret creates — the generic
+    # template just `toYaml`s this list, so both work without special-casing
+    # cartservice the way frontend/loadgenerator/redis-cart needed to be.
+    env:
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: redis-cart-credentials
+            key: password
+      - name: REDIS_ADDR
+        value: "redis-cart:6379,password=$(REDIS_PASSWORD)"
+
+  - name: emailservice
+    port: 8080
+    servicePort: 5000
+    readinessPeriodSeconds: 5
+    livenessPeriodSeconds: 5
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    env:
+      - {name: PORT, value: "8080"}
+      - {name: DISABLE_PROFILER, value: "1"}
+
+  - name: paymentservice
+    port: 50051
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    env:
+      - {name: PORT, value: "50051"}
+      - {name: DISABLE_PROFILER, value: "1"}
+
+  - name: recommendationservice
+    port: 8080
+    readinessPeriodSeconds: 5
+    livenessPeriodSeconds: 5
+    resources:
+      requests: {cpu: 100m, memory: 220Mi}
+      limits: {cpu: 200m, memory: 450Mi}
+    env:
+      - {name: PORT, value: "8080"}
+      - {name: PRODUCT_CATALOG_SERVICE_ADDR, value: "productcatalogservice:3550"}
+      - {name: DISABLE_PROFILER, value: "1"}
+
+  - name: adservice
+    port: 9555
+    readinessInitialDelaySeconds: 20
+    readinessPeriodSeconds: 15
+    livenessInitialDelaySeconds: 20
+    livenessPeriodSeconds: 15
+    resources:
+      requests: {cpu: 200m, memory: 180Mi}
+      limits: {cpu: 300m, memory: 300Mi}
+    env:
+      - {name: PORT, value: "9555"}
+
+# frontend — special-cased (templates/frontend.yaml): HTTP probes with a
+# cookie header, more env vars than any other service, and it's the one
+# thing this chart exposes outside ClusterIP-to-ClusterIP traffic.
+frontend:
+  port: 8080
+  resources:
+    requests: {cpu: 100m, memory: 64Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+
+# loadgenerator — special-cased (templates/loadgenerator.yaml): has an init
+# container that blocks until frontend answers, unlike anything in `services`.
+loadgenerator:
+  users: "10"
+  rate: "1"
+  resources:
+    requests: {cpu: 300m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+
+# redis-cart — special-cased (templates/redis-cart.yaml): a StatefulSet with
+# a PersistentVolumeClaim, not a Deployment. Module 05's storage class;
+# password comes from a Secret this chart creates from redisCart.password —
+# override it at install time (never commit a real value here).
+redisCart:
+  storageClassName: longhorn
+  storageSize: 1Gi
+  password: "changeme-override-at-install"
+  resources:
+    requests: {cpu: 70m, memory: 200Mi}
+    limits: {cpu: 125m, memory: 256Mi}

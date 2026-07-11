@@ -1,0 +1,39 @@
+# Stands in for a CI/CD pipeline's credentials (Module 11 wires ArgoCD/CI
+# in for real). A deploy pipeline needs to roll out new versions of
+# workloads — it does not need to read Secrets to do that (Pods mount their
+# own Secrets at runtime; the pipeline identity never needs to see the values).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: online-boutique
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-deployer
+  namespace: online-boutique
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # No create/delete (a pipeline updates existing workloads' image tags, it
+  # doesn't need to create or delete objects), and no access at all to
+  # secrets, configmaps, or RBAC objects.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-deployer
+  namespace: online-boutique
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: online-boutique
+roleRef:
+  kind: Role
+  name: ci-deployer
+  apiGroup: rbac.authorization.k8s.io

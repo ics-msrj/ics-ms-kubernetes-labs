@@ -1,0 +1,35 @@
+# EXERCISE ONLY — not applied by setup.sh, not checked by verify.sh.
+# A plain K8s NetworkPolicy can only say "loadgenerator may reach frontend on
+# port 8080" — TCP/port granularity. This CiliumNetworkPolicy says
+# "loadgenerator may only send GET requests to frontend" — HTTP-method
+# granularity, because Cilium terminates and inspects L7 traffic for rules
+# like this one instead of just filtering packets.
+#
+# Apply it, then watch loadgenerator's logs:
+#   kubectl apply -f modules/04-networking-gateway/manifests/bonus/ciliumnetworkpolicy-loadgenerator-l7.yaml
+#   kubectl logs -n online-boutique deploy/loadgenerator -f
+#
+# loadgenerator's simulated checkout flow uses POST — expect those requests
+# to start failing while its GET requests (browsing, product pages) keep
+# working. That's the L7 policy being enforced, not a bug. Remove it after:
+#   kubectl delete -f modules/04-networking-gateway/manifests/bonus/ciliumnetworkpolicy-loadgenerator-l7.yaml
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: loadgenerator-frontend-get-only
+  namespace: online-boutique
+spec:
+  endpointSelector:
+    matchLabels:
+      app: loadgenerator
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app: frontend
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: "GET"

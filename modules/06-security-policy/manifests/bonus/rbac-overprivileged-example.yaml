@@ -1,0 +1,28 @@
+# EXERCISE ONLY — not applied by setup.sh, not checked by verify.sh.
+# A common real mistake: binding cluster-admin to a namespace-scoped
+# ServiceAccount "just to unblock something," and never revisiting it.
+#
+#   kubectl apply -f modules/06-security-policy/manifests/bonus/rbac-overprivileged-example.yaml
+#   kubectl auth can-i delete namespaces --as=system:serviceaccount:online-boutique:overprivileged-example
+#   # -> yes. A ServiceAccount that was only ever supposed to touch one
+#   #    namespace can now delete every namespace in the cluster, read every
+#   #    Secret cluster-wide, and modify RBAC itself.
+#   kubectl delete -f modules/06-security-policy/manifests/bonus/rbac-overprivileged-example.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: overprivileged-example
+  namespace: online-boutique
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: overprivileged-example
+subjects:
+  - kind: ServiceAccount
+    name: overprivileged-example
+    namespace: online-boutique
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

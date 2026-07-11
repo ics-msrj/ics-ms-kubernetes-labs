@@ -1,0 +1,44 @@
+# A CronJob: a Job template run on a schedule. This one logs redis-cart's
+# INFO stats every 15 minutes — a lightweight, realistic stand-in for the
+# kind of periodic housekeeping/reporting task CronJobs are actually used
+# for in production (cache stats, backup triggers, report generation).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cart-housekeeping
+  labels:
+    app: cart-housekeeping
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 60
+      template:
+        metadata:
+          labels:
+            app: cart-housekeeping
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          containers:
+            - name: redis-stats
+              image: redis:alpine
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  echo "=== redis-cart stats $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+                  redis-cli -h redis-cart INFO stats
+                  redis-cli -h redis-cart DBSIZE
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                privileged: false
+                readOnlyRootFilesystem: true

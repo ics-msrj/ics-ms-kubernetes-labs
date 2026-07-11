@@ -1,0 +1,38 @@
+# PSA (namespace-wide labels) only understands pod-level security fields —
+# it has no concept of "image tag." Policy engines like Kyverno fill that
+# gap: arbitrary rules over anything in the resource spec. Every image this
+# repo actually deploys is pinned (Online Boutique's v0.10.5 tags, redis:alpine
+# is the one deliberate exception upstream itself ships — pinning that is a
+# good follow-up exercise), so this policy should never reject real traffic.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "An explicit image tag is required — found an image with no tag (implicitly ':latest')."
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "The ':latest' tag is not allowed — pin an explicit version."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

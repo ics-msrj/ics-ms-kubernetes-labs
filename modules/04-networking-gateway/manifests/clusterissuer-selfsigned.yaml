@@ -1,0 +1,10 @@
+# No external dependency — works with no domain, no DNS, no internet-facing
+# port 80. Browsers will show a trust warning; the TLS handshake itself, and
+# everything cert-manager automates around it, is otherwise identical to the
+# Let's Encrypt issuers below.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned
+spec:
+  selfSigned: {}

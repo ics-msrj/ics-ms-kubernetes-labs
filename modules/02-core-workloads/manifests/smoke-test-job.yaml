@@ -1,0 +1,41 @@
+# A Job: runs once to completion, then stops — unlike a Deployment, which
+# keeps replacing its pod forever. This is the same pattern a CI/CD pipeline
+# uses for a post-deploy smoke test (see Module 11 — GitOps & CI/CD).
+#
+# Jobs are immutable once created (you can't `kubectl apply` a changed Job
+# spec onto a running one) — setup.sh and verify.sh delete-then-recreate it
+# each time it needs to run again.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: frontend-smoke-test
+  labels:
+    app: frontend-smoke-test
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: frontend-smoke-test
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: smoke-test
+          image: busybox:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Checking frontend Service reachability..."
+              wget --spider -q http://frontend/ && echo "frontend OK" || (echo "frontend FAILED" && exit 1)
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            privileged: false
+            readOnlyRootFilesystem: true

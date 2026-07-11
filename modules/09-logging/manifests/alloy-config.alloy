@@ -1,0 +1,44 @@
+// Grafana Alloy configuration (Alloy syntax, not YAML) — passed into the
+// Helm chart via alloy.configMap.content.
+//
+// loki.source.kubernetes reads pod logs through the Kubernetes API (the
+// same path `kubectl logs` uses) rather than tailing files on the host —
+// no hostPath mount, no extra privilege beyond the pods/log RBAC the
+// chart's own ClusterRole already grants. Cluster-wide: every namespace,
+// not just online-boutique, is discovered and shipped.
+
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+discovery.relabel "pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    target_label  = "node"
+  }
+}
+
+loki.source.kubernetes "pods" {
+  targets    = discovery.relabel.pods.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+  }
+}

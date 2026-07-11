@@ -1,0 +1,22 @@
+# Grafana's sidecar (already running as part of Module 08's kube-prometheus-stack
+# install) auto-discovers any ConfigMap in its own namespace labeled
+# grafana_datasource: "1" and loads its contents as a datasource provisioning
+# file — no Grafana restart, no Helm upgrade of the Module 08 release needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-loki-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki-gateway.monitoring.svc.cluster.local
+        isDefault: false
+        jsonData:
+          maxLines: 1000

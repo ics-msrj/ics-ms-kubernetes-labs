@@ -1,0 +1,22 @@
+# Let's Encrypt PRODUCTION — real, browser-trusted certificates, but strict
+# rate limits (5 duplicate certificates per exact hostname set per week, as
+# of this writing). Only switch to this after clusterissuer-letsencrypt-staging.yaml
+# has issued successfully — a failed production attempt still counts against
+# the limit. __ACME_EMAIL__ is substituted by setup.sh from lab.env's ACME_EMAIL.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: __ACME_EMAIL__
+    privateKeySecretRef:
+      name: letsencrypt-production-account-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: frontend-gateway
+                namespace: online-boutique
+                kind: Gateway

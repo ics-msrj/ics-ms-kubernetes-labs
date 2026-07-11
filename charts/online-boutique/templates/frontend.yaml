@@ -1,0 +1,93 @@
+{{/*
+frontend doesn't fit the generic-service.yaml loop: HTTP probes with a
+cookie header (not gRPC), and env vars that reference every other service
+by name — templating those against $.Values.services would be more
+indirection than clarity for a chart this size, so they're written out
+explicitly, the same as upstream.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    {{- include "online-boutique.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      serviceAccountName: frontend
+      securityContext:
+        {{- toYaml .Values.securityContext.pod | nindent 8 }}
+      containers:
+        - name: server
+          securityContext:
+            {{- toYaml .Values.securityContext.container | nindent 12 }}
+          image: {{ include "online-boutique.image" (dict "registry" .Values.image.registry "name" "frontend" "tag" .Values.image.tag) }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.frontend.port }}
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-readiness-probe"
+          livenessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.frontend.port }}
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-liveness-probe"
+          env:
+            - name: PORT
+              value: {{ .Values.frontend.port | quote }}
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "productcatalogservice:3550"
+            - name: CURRENCY_SERVICE_ADDR
+              value: "currencyservice:7000"
+            - name: CART_SERVICE_ADDR
+              value: "cartservice:7070"
+            - name: RECOMMENDATION_SERVICE_ADDR
+              value: "recommendationservice:8080"
+            - name: SHIPPING_SERVICE_ADDR
+              value: "shippingservice:50051"
+            - name: CHECKOUT_SERVICE_ADDR
+              value: "checkoutservice:5050"
+            - name: AD_SERVICE_ADDR
+              value: "adservice:9555"
+            - name: ENABLE_PROFILER
+              value: "0"
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    {{- include "online-boutique.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .Values.frontend.port }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  labels:
+    {{- include "online-boutique.labels" . | nindent 4 }}

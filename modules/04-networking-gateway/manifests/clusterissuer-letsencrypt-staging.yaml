@@ -1,0 +1,21 @@
+# Let's Encrypt STAGING — higher rate limits, untrusted-by-browsers test CA.
+# Use this while iterating; switch to clusterissuer-letsencrypt-production.yaml
+# only once a staging certificate issues successfully end to end.
+# __ACME_EMAIL__ is substituted by setup.sh from lab.env's ACME_EMAIL.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: __ACME_EMAIL__
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: frontend-gateway
+                namespace: online-boutique
+                kind: Gateway

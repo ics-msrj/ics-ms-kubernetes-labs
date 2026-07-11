@@ -1,0 +1,55 @@
+# Alerts that tie directly back to what earlier modules built, instead of
+# generic examples: HPA maxed out (Module 07), a volume nearly full
+# (Module 05), a pod restart-looping (Module 02 onward), and a TLS
+# certificate approaching expiry (Module 04 — this rule needs
+# setup.sh's cert-manager ServiceMonitor step to have real data to alert on).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: online-boutique-alerts
+  namespace: online-boutique
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: online-boutique.rules
+      rules:
+        - alert: HPAAtMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="online-boutique"}
+              == kube_horizontalpodautoscaler_spec_max_replicas{namespace="online-boutique"}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} has been at its max replica count for 5+ minutes"
+            description: "Consider raising maxReplicas, or investigate why load isn't dropping — see Module 07."
+
+        - alert: PersistentVolumeNearlyFull
+          expr: |
+            kubelet_volume_stats_available_bytes{namespace="online-boutique"}
+              / kubelet_volume_stats_capacity_bytes{namespace="online-boutique"} < 0.10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.persistentvolumeclaim }} has less than 10% free space"
+            description: "Expand it live — Longhorn's StorageClass allows volume expansion, see Module 05."
+
+        - alert: PodRestartingFrequently
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="online-boutique"}[15m]) > 3
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }}/{{ $labels.container }} restarted more than 3 times in 15 minutes"
+            description: "kubectl logs --previous is the first move: kubectl logs -n online-boutique {{ $labels.pod }} -c {{ $labels.container }} --previous"
+
+        - alert: CertificateExpiringSoon
+          expr: |
+            avg by (name, namespace) (certmanager_certificate_expiration_timestamp_seconds{namespace="online-boutique"} - time()) < 7 * 86400
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} expires in less than 7 days"
+            description: "cert-manager should auto-renew well before this fires — see Module 04 if it doesn't: kubectl describe certificate {{ $labels.name }} -n online-boutique"

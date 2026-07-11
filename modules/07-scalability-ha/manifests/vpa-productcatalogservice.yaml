@@ -1,0 +1,17 @@
+# updateMode: "Off" — VPA computes and reports a recommendation but never
+# evicts or resizes the pod itself. Running VPA in Auto/Recreate mode on the
+# same resource (CPU) HPA already manages would fight HPA for the same
+# knob — this module deliberately points VPA at a *different* service than
+# hpa-frontend.yaml targets, and even then, keeps it recommendation-only.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: productcatalogservice
+  namespace: online-boutique
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: productcatalogservice
+  updatePolicy:
+    updateMode: "Off"

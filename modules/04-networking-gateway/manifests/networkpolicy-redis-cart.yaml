@@ -1,0 +1,24 @@
+# A NetworkPolicy that selects a pod and defines ingress rules makes that
+# pod deny everything NOT matching those rules — there's no separate
+# "default-deny" object needed for a single targeted workload like this.
+# Before this policy: any pod in the namespace can open a TCP connection to
+# redis-cart. After: only pods labeled app=cartservice can.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-cart-allow-cartservice-only
+  namespace: online-boutique
+spec:
+  podSelector:
+    matchLabels:
+      app: redis-cart
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: cartservice
+      ports:
+        - protocol: TCP
+          port: 6379

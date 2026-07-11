@@ -1,0 +1,17 @@
+# Inflates the charts/online-boutique Helm chart Module 10 authored, using
+# the chart's own default values.yaml untouched — the overlays in
+# ../overlays/{dev,staging,prod} patch specific fields per environment on
+# top of this rendered output via strategic-merge patches, Kustomize's own
+# mechanism, rather than maintaining 3 separate Helm values files.
+#
+# Requires chart inflation support: `kustomize build --enable-helm` (chart
+# inflation shells out to `helm template`, which Kustomize treats as opt-in
+# for security — plain `kubectl kustomize` does not enable this by default).
+helmGlobals:
+  chartHome: ../../charts
+
+helmCharts:
+  - name: online-boutique
+    releaseName: online-boutique
+    namespace: online-boutique-dev
+    includeCRDs: false

@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill in your own values.
+# terraform.tfvars is git-ignored — never commit real IPs/CIDRs tied to you.
+
+region               = "ap-southeast-1"
+cluster_name         = "k8s-lab"
+ssh_user             = "ubuntu"
+ssh_public_key_path  = "~/.ssh/k8s-lab.pub"
+
+# Restrict to your own IP: curl ifconfig.me
+allowed_cidr = "203.0.113.10/32"
+
+control_plane_instance_type = "t3.medium"
+worker_instance_type        = "t3.large"
+worker_count                = 2

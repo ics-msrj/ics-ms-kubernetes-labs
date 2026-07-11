@@ -1,0 +1,13 @@
+apiVersion: v2
+name: online-boutique
+description: >
+  Online Boutique (GoogleCloudPlatform/microservices-demo), packaged as a Helm
+  chart authored for Module 10 — Package Management. Templates 9 structurally
+  similar gRPC services from one Deployment/Service/ServiceAccount template via
+  a range loop over values.services; frontend, loadgenerator, and the
+  redis-cart StatefulSet are special-cased because their shape genuinely
+  differs (HTTP probes with cookies, an init container, a PVC).
+type: application
+version: 0.1.0
+appVersion: "v0.10.5"
+home: https://github.com/GoogleCloudPlatform/microservices-demo

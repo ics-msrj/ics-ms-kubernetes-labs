@@ -1,0 +1,64 @@
+# Redefines the upstream cartservice Deployment to authenticate to redis-cart.
+# cartservice's REDIS_ADDR is passed straight into StackExchange.Redis's
+# ConfigurationOptions parser, which accepts `host:port,password=xxx` —
+# confirmed against cartservice's Startup.cs upstream. REDIS_PASSWORD is
+# defined first so REDIS_ADDR can reference it via $(REDIS_PASSWORD)
+# (Kubernetes only expands $(VAR) references to vars already defined earlier
+# in the same container's env list).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cartservice
+  labels:
+    app: cartservice
+spec:
+  selector:
+    matchLabels:
+      app: cartservice
+  template:
+    metadata:
+      labels:
+        app: cartservice
+    spec:
+      serviceAccountName: cartservice
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            privileged: false
+            readOnlyRootFilesystem: true
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/cartservice:v0.10.5
+          ports:
+            - containerPort: 7070
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-cart-credentials
+                  key: password
+            - name: REDIS_ADDR
+              value: "redis-cart:6379,password=$(REDIS_PASSWORD)"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+          readinessProbe:
+            initialDelaySeconds: 15
+            grpc:
+              port: 7070
+          livenessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            grpc:
+              port: 7070

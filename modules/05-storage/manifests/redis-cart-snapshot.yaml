@@ -1,0 +1,9 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: redis-cart-snapshot
+  namespace: online-boutique
+spec:
+  volumeSnapshotClassName: longhorn
+  source:
+    persistentVolumeClaimName: redis-data-redis-cart-0

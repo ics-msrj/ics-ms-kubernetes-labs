@@ -1,0 +1,30 @@
+# Every container Online Boutique ships already sets requests and limits
+# (check any Deployment from workloads/online-boutique/upstream/) — this
+# policy makes that a guardrail for whatever gets deployed next, not just a
+# convention someone has to remember and enforce by hand in code review.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "CPU and memory requests and limits are required on every container."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    memory: "?*"
+                    cpu: "?*"
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"

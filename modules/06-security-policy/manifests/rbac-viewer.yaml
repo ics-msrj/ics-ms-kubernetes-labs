@@ -1,0 +1,35 @@
+# A ServiceAccount + Role standing in for a human user (e.g. support/SRE)
+# who needs to look at online-boutique without being able to change anything.
+# Test it directly instead of trusting the YAML: `kubectl auth can-i`.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: viewer
+  namespace: online-boutique
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: viewer
+  namespace: online-boutique
+rules:
+  - apiGroups: ["", "apps", "batch"]
+    resources: ["pods", "services", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Deliberately excluded: secrets. A read-only role that can read Secrets
+  # is not read-only in any way that matters — it can read every credential
+  # in the namespace.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: viewer
+  namespace: online-boutique
+subjects:
+  - kind: ServiceAccount
+    name: viewer
+    namespace: online-boutique
+roleRef:
+  kind: Role
+  name: viewer
+  apiGroup: rbac.authorization.k8s.io

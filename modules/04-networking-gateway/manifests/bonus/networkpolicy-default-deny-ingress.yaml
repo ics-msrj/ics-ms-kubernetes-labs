@@ -1,0 +1,25 @@
+# EXERCISE ONLY — not applied by setup.sh, not checked by verify.sh.
+# Apply this by hand to see the blast radius of a namespace-wide default-deny:
+#
+#   kubectl apply -f modules/04-networking-gateway/manifests/bonus/networkpolicy-default-deny-ingress.yaml
+#   kubectl port-forward -n online-boutique svc/frontend 8080:80  # (still works — port-forward bypasses NetworkPolicy)
+#   curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/   # still 200 — no policy touched frontend's *own* pod-to-pod calls yet
+#   kubectl exec -n online-boutique deploy/frontend -c server -- true # can the frontend pod still reach productcatalogservice? try a real page load — it can't
+#
+# Everything without its own explicit allow rule (i.e. everything except
+# redis-cart, which already has one from networkpolicy-redis-cart.yaml) stops
+# accepting traffic from other pods. This is why real environments introduce
+# default-deny early, deliberately, and incrementally — not as a surprise
+# retrofit onto a working app.
+#
+# Remove it when you're done:
+#   kubectl delete -f modules/04-networking-gateway/manifests/bonus/networkpolicy-default-deny-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: online-boutique
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

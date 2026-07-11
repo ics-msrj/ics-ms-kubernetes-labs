@@ -1,0 +1,90 @@
+# Upstream Online Boutique ships redis-cart as a bare Deployment with an
+# emptyDir volume — every pod restart loses every cart in the store. This
+# file replaces that Deployment with a StatefulSet backed by a
+# PersistentVolumeClaim, so cart data survives a pod restart/reschedule.
+#
+# The existing `redis-cart` ClusterIP Service (from the upstream manifest)
+# is left untouched and keeps routing to these pods via the `app: redis-cart`
+# label — cartservice's REDIS_ADDR doesn't need to change. This headless
+# Service is added alongside it purely so the StatefulSet has the stable
+# per-pod DNS (`redis-cart-0.redis-cart-headless`) that's the point of using
+# a StatefulSet in the first place.
+#
+# setup.sh deletes the upstream Deployment before applying this file — see
+# modules/02-core-workloads/scripts/setup.sh.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cart-headless
+  labels:
+    app: redis-cart
+spec:
+  clusterIP: None
+  selector:
+    app: redis-cart
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cart
+  labels:
+    app: redis-cart
+spec:
+  serviceName: redis-cart-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-cart
+  template:
+    metadata:
+      labels:
+        app: redis-cart
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: redis
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+          image: redis:alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          livenessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+          resources:
+            requests:
+              cpu: 70m
+              memory: 200Mi
+            limits:
+              cpu: 125m
+              memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: online-boutique-shared-config
+  namespace: online-boutique
+data:
+  # 6 of the 11 upstream services hardcode this exact key/value inline —
+  # a single shared ConfigMap replaces that duplication. Change it here and
+  # `kubectl rollout restart` the 6 Deployments to roll the new value out,
+  # with no image rebuild and no per-Deployment edit.
+  DISABLE_PROFILER: "1"

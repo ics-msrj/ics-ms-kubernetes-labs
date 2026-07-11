@@ -1,0 +1,85 @@
+{{/*
+One template, looped over every entry in .Values.services, emitting a
+Deployment + Service + ServiceAccount per iteration. This is the entire
+point of authoring a chart instead of hand-writing 9 near-identical sets of
+YAML: the 9 services in values.yaml differ only in port, env, resources,
+and a handful of optional probe-timing overrides — everything else here is
+written once.
+*/}}
+{{- range .Values.services }}
+{{- $svc := . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $svc.name }}
+  labels:
+    app: {{ $svc.name }}
+    {{- include "online-boutique.labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $svc.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $svc.name }}
+    spec:
+      serviceAccountName: {{ $svc.name }}
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        {{- toYaml $.Values.securityContext.pod | nindent 8 }}
+      containers:
+        - name: server
+          securityContext:
+            {{- toYaml $.Values.securityContext.container | nindent 12 }}
+          image: {{ include "online-boutique.image" (dict "registry" $.Values.image.registry "name" $svc.name "tag" $.Values.image.tag) }}
+          ports:
+            - name: grpc
+              containerPort: {{ $svc.port }}
+          env:
+            {{- toYaml $svc.env | nindent 12 }}
+          readinessProbe:
+            {{- if $svc.readinessInitialDelaySeconds }}
+            initialDelaySeconds: {{ $svc.readinessInitialDelaySeconds }}
+            {{- end }}
+            {{- if $svc.readinessPeriodSeconds }}
+            periodSeconds: {{ $svc.readinessPeriodSeconds }}
+            {{- end }}
+            grpc:
+              port: {{ $svc.port }}
+          livenessProbe:
+            {{- if $svc.livenessInitialDelaySeconds }}
+            initialDelaySeconds: {{ $svc.livenessInitialDelaySeconds }}
+            {{- end }}
+            {{- if $svc.livenessPeriodSeconds }}
+            periodSeconds: {{ $svc.livenessPeriodSeconds }}
+            {{- end }}
+            grpc:
+              port: {{ $svc.port }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc.name }}
+  labels:
+    app: {{ $svc.name }}
+    {{- include "online-boutique.labels" $ | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $svc.name }}
+  ports:
+    - name: grpc
+      port: {{ $svc.servicePort | default $svc.port }}
+      targetPort: {{ $svc.port }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $svc.name }}
+  labels:
+    {{- include "online-boutique.labels" $ | nindent 4 }}
+{{- end }}

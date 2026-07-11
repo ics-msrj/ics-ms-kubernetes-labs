@@ -1,0 +1,46 @@
+# Extends Module 04's frontend-gateway with a second HTTPS listener on the
+# same port 443 — Gateway API implementations route by SNI, so one Gateway
+# can present a different certificate per hostname. This is the full Gateway
+# spec (Module 04's listeners + this module's grafana one): kubectl apply's
+# 3-way merge replaces the whole listeners list, so leaving the http/https
+# listeners out here would delete them, not just leave them alone.
+# __TLS_ISSUER__ and __GRAFANA_DOMAIN__ are substituted by setup.sh.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: online-boutique
+  annotations:
+    cert-manager.io/cluster-issuer: __TLS_ISSUER__
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: frontend-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-grafana
+      protocol: HTTPS
+      port: 443
+      hostname: __GRAFANA_DOMAIN__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: grafana-tls
+      allowedRoutes:
+        namespaces:
+          from: All

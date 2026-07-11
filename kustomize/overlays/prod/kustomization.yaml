@@ -1,0 +1,32 @@
+# prod: higher replica floor, higher resource ceiling, bigger redis-cart
+# volume than either dev or staging. Render/diff only in this module — not
+# applied live (see README) — this repo's actual running app stays on what
+# Modules 02-09 built directly; this overlay demonstrates what promoting it
+# to a Kustomize+Helm pipeline would look like.
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 400m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi
+  - target:
+      kind: StatefulSet
+      name: redis-cart
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 5Gi
+
+commonLabels:
+  environment: prod

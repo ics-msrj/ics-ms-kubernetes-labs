@@ -1,0 +1,18 @@
+# Applied and deleted by verify.sh only — proves the snapshot in
+# redis-cart-snapshot.yaml can actually be restored into a new, independent
+# volume, not just that the VolumeSnapshot object exists.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-cart-restore-test
+  namespace: online-boutique
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  dataSource:
+    name: redis-cart-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  resources:
+    requests:
+      storage: 1Gi

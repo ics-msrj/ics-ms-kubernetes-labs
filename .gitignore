@@ -1,0 +1,69 @@
+# =============================================================================
+# .gitignore — Kubernetes Learning Lab
+# =============================================================================
+
+# ----- Terraform (VM provisioning, if used) -----
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+.terraform/
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+*.tfplan
+tfplan*
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.tfvars
+!terraform.tfvars.example
+backend.hcl
+
+# ----- Kubernetes -----
+kubeconfig*.yaml
+kubeconfig*.yml
+!kubeconfig*.example.yaml
+join-command.sh
+
+# ----- Secrets / Credentials -----
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+!.env.local.example
+secrets/
+credentials.json
+.tmp-secrets/
+lab.env
+!lab.env.example
+
+# ----- Ansible -----
+*.retry
+
+# ----- Local lab state -----
+.lab-state/
+
+# ----- Per-cluster generated artifacts -----
+# SealedSecrets, kubeconfigs, etc. generated against one specific cluster's
+# keys — safe in principle (ciphertext) but stale/useless against any other
+# cluster, so not committed. See modules/03-config-secrets/README.md.
+modules/*/generated/
+
+# ----- OS / editor cruft -----
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# ----- Logs / scratch -----
+*.log
+tmp/
+scratch/

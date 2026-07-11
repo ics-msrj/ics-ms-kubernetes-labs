@@ -1,0 +1,18 @@
+# staging: closer to production shape than dev — 2 frontend replicas
+# (mirrors Module 07's HPA minReplicas on the real online-boutique
+# namespace), default resource limits from the chart untouched.
+# Render/diff only in this module — not applied live (see README).
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 2
+
+commonLabels:
+  environment: staging

@@ -1,0 +1,30 @@
+# dev: smallest possible footprint — 1 replica everywhere (already true from
+# the base chart), tighter CPU limits, and a smaller redis-cart volume. This
+# is the one overlay this module actually deploys live — see setup.sh.
+resources:
+  - ../../base
+
+# Kustomize's `namespace:` transformer doesn't reliably stamp metadata onto
+# resources produced by the helmCharts inflator (a known rough edge in how
+# generators interact with transformers) — so the namespace is set at apply
+# time instead: `kubectl apply -k . -n online-boutique-dev` (see setup.sh).
+# None of this chart's templates hardcode a namespace, so that's sufficient.
+
+patches:
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 100m
+  - target:
+      kind: StatefulSet
+      name: redis-cart
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 500Mi
+
+commonLabels:
+  environment: dev

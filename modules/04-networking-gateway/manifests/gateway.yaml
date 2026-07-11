@@ -1,0 +1,36 @@
+# The `http` listener exists only so cert-manager's ACME HTTP-01 solver has
+# somewhere to attach its temporary challenge HTTPRoute — httproute-frontend.yaml
+# attaches only to `https`. Browsing http://__APP_DOMAIN__ won't serve the app;
+# that's deliberate for this module (an HTTP->HTTPS redirect is a good exercise
+# to add yourself once the base setup works — see the README).
+#
+# cert-manager.io/cluster-issuer triggers cert-manager's gateway-shim: it
+# watches for a TLS listener's certificateRefs and creates/renews a matching
+# Certificate automatically — no separate Certificate object to write by hand.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: online-boutique
+  annotations:
+    cert-manager.io/cluster-issuer: __TLS_ISSUER__
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: frontend-tls
+      allowedRoutes:
+        namespaces:
+          from: Same

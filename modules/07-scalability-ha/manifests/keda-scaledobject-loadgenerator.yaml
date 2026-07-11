@@ -1,0 +1,23 @@
+# KEDA's headline capability HPA doesn't have: scale to zero. loadgenerator
+# only needs to run during a "business hours" window (09:00-17:00 UTC here —
+# adjust to your own timezone) and costs nothing outside it. Whichever state
+# you find it in when you check (0 replicas, or scaled up) is correct for
+# the current time — that's the demonstration, not a bug in this manifest.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: loadgenerator-cron
+  namespace: online-boutique
+spec:
+  scaleTargetRef:
+    name: loadgenerator
+  minReplicaCount: 0
+  maxReplicaCount: 3
+  cooldownPeriod: 60
+  triggers:
+    - type: cron
+      metadata:
+        timezone: UTC
+        start: "0 9 * * *"
+        end: "0 17 * * *"
+        desiredReplicas: "3"

@@ -1,0 +1,91 @@
+# Redefines Module 02's redis-cart StatefulSet to require authentication.
+# Adds: REDIS_PASSWORD sourced from the redis-cart-credentials Secret (created
+# by setup.sh via kubeseal — see redis-cart-secret.template.yaml), and passes
+# it to the redis image as `--requirepass` via container args. The official
+# redis image's entrypoint forwards any args starting with `-` straight to
+# `redis-server`, so `args: [--requirepass, $(REDIS_PASSWORD)]` becomes
+# `redis-server --requirepass <password>` — no custom image needed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cart-headless
+  labels:
+    app: redis-cart
+spec:
+  clusterIP: None
+  selector:
+    app: redis-cart
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cart
+  labels:
+    app: redis-cart
+spec:
+  serviceName: redis-cart-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-cart
+  template:
+    metadata:
+      labels:
+        app: redis-cart
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: redis
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            privileged: false
+            readOnlyRootFilesystem: true
+          image: redis:alpine
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-cart-credentials
+                  key: password
+          args:
+            - "--requirepass"
+            - "$(REDIS_PASSWORD)"
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          livenessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+          resources:
+            requests:
+              cpu: 70m
+              memory: 200Mi
+            limits:
+              cpu: 125m
+              memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,14 @@
+# cartservice isn't an HPA target in this module — setup.sh scales it to 2
+# replicas directly (kubectl scale) so this PDB has more than one pod to
+# actually protect. That scale is a one-time, transient change: re-running
+# Module 02/03's setup.sh will reset it back to the upstream default of 1.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cartservice
+  namespace: online-boutique
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cartservice
