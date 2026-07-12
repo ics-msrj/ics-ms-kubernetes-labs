@@ -1,0 +1,20 @@
+# Scenario 1 — pod-kill on cartservice.
+#
+# Exercises Module 07's pdb-cartservice.yaml: the PDB doesn't stop this
+# (pod-kill isn't a voluntary eviction, so the PDB is never consulted — the
+# thing actually under test is whether cartservice's Deployment/ReplicaSet
+# recreates the pod fast enough that checkout stays available).
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: cartservice-pod-kill
+  namespace: online-boutique
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: cartservice
+  duration: "30s"

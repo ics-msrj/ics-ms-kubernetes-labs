@@ -48,7 +48,7 @@ See [`workloads/online-boutique/`](workloads/online-boutique/) for how it's vend
 | 15 | [Multi-Tenancy & Cost](modules/15-multi-tenancy-cost/) | Advanced | ✅ |
 | 16 | [Supply Chain Security](modules/16-supply-chain-security/) | Advanced | ✅ |
 | 17 | [Service Mesh](modules/17-service-mesh/) | Advanced | ✅ |
-| 18 | [Chaos Engineering & Incident Response](modules/18-chaos-engineering/) | Advanced | ⬜ |
+| 18 | [Chaos Engineering & Incident Response](modules/18-chaos-engineering/) | Advanced | ✅ |
 | 99 | [Capstone](modules/99-capstone/) | Advanced | ⬜ |
 
 See [CURRICULUM.md](CURRICULUM.md) for full module details, learning objectives, and architecture notes.

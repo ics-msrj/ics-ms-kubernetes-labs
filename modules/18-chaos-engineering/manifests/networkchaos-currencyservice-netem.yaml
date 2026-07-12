@@ -1,0 +1,30 @@
+# Scenario 2 — network degradation on currencyservice.
+#
+# Exercises Module 17's real retry/circuit-breaking policy
+# (currencyservice-resilience.yaml) under an actual degraded network path,
+# not the manual 50%-fault-delay VirtualService bonus from that module.
+# action: netem combines delay and loss in one fault, applied to egress
+# traffic FROM currencyservice's sidecar (direction: to means "outbound
+# from the selected pods").
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: currencyservice-netem
+  namespace: online-boutique
+spec:
+  action: netem
+  mode: all
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: currencyservice
+  direction: to
+  delay:
+    latency: "1200ms"
+    jitter: "300ms"
+    correlation: "50"
+  loss:
+    loss: "15"
+    correlation: "25"
+  duration: "3m"

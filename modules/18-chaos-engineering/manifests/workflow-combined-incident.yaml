@@ -1,0 +1,62 @@
+# Scenario 5/6 — combined incident: cartservice pod-kills recurring WHILE
+# currencyservice's network degrades, at the same time. A single fault is a
+# unit test; two independent faults overlapping is what a real incident
+# usually looks like — the on-call has to work out that there are two
+# separate root causes, not one.
+#
+# templateType: Parallel starts both children at once and the workflow
+# entry completes once both finish. Reuses the same underlying Chaos Mesh
+# actions as scenarios 1 and 2, just orchestrated together instead of
+# applied by hand one at a time.
+#
+# This is also the manifest used for the "blind" postmortem drill (Lab
+# Step 6 in this module's README) — apply it without looking at this file's
+# comments, then diagnose from Grafana/Loki alone.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: gameday-combined-incident
+  namespace: online-boutique
+spec:
+  entry: combined-incident
+  templates:
+    - name: combined-incident
+      templateType: Parallel
+      deadline: 200s
+      children:
+        - cartservice-pod-kills
+        - currencyservice-netem
+
+    - name: cartservice-pod-kills
+      templateType: PodChaos
+      deadline: 180s
+      podChaos:
+        action: pod-kill
+        mode: one
+        selector:
+          namespaces:
+            - online-boutique
+          labelSelectors:
+            app: cartservice
+        duration: "20s"
+
+    - name: currencyservice-netem
+      templateType: NetworkChaos
+      deadline: 180s
+      networkChaos:
+        action: netem
+        mode: all
+        selector:
+          namespaces:
+            - online-boutique
+          labelSelectors:
+            app: currencyservice
+        direction: to
+        delay:
+          latency: "1200ms"
+          jitter: "300ms"
+          correlation: "50"
+        loss:
+          loss: "15"
+          correlation: "25"
+        duration: "180s"

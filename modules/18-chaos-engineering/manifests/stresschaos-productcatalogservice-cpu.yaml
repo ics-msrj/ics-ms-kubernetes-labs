@@ -1,0 +1,24 @@
+# Scenario 3 — CPU stress on productcatalogservice.
+#
+# Exercises Module 07's VerticalPodAutoscaler for productcatalogservice,
+# which has never actually been chaos-tested up to this point in the repo —
+# real load (loadgenerator) never pushed it hard enough to matter. 2 workers
+# at 100% load saturate the container's CPU request/limit, giving the VPA
+# recommender real usage data to react to.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: productcatalogservice-cpu-stress
+  namespace: online-boutique
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: productcatalogservice
+  stressors:
+    cpu:
+      workers: 2
+      load: 100
+  duration: "5m"

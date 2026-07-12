@@ -30,7 +30,7 @@ Internet ──▶ Cilium Gateway (Module 04, unchanged) ──▶ frontend Serv
                                           ▼                                          ▼
                                  frontend pod                                cartservice pod
                                  ┌──────────────┐                          ┌──────────────┐
-                                 │ app container  │◀── mTLS STRICC ──▶      │ app container  │
+                                 │ app container  │◀── mTLS STRICT ──▶      │ app container  │
                                  │ + istio-proxy   │   (every hop,           │ + istio-proxy   │
                                  │   (Envoy)        │    every service        │   (Envoy)        │
                                  └──────────────┘    in online-boutique)    └──────────────┘
