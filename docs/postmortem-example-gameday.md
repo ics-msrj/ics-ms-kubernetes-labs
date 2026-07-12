@@ -25,9 +25,9 @@ For roughly 3 minutes, `currencyservice` calls became slow and intermittently fa
 | 14:02:45 | `cartservice` pod restart count increments by 1 (`kube-state-metrics` panel) |
 | 14:03:00 | Started diagnosis — two symptoms noticed at once, initial (wrong) hypothesis: a single cascading failure starting in currencyservice and taking cartservice down with it |
 | 14:03:20 | Checked Kiali traffic graph: the edge into `currencyservice` shows a mix of slow and red (failed) requests, but no edge shows `cartservice` calling `currencyservice` — the two are not on the same call path from the mesh's point of view. Cascading-failure hypothesis dropped. |
-| 14:03:50 | `kubectl logs -n online-boutique deployment/cartservice --previous` after the second restart shows no error, no OOM, no panic — just a clean SIGTERM. Consistent with something external killing the pod, not an application crash. |
+| 14:03:50 | `kubectl logs -n online-boutique deployment/cartservice --previous` after the restart shows no error, no OOM, no panic — just a clean SIGTERM. Consistent with something external killing the pod, not an application crash. |
 | 14:04:10 | Loki query (Module 09, Grafana Explore) for `{namespace="online-boutique"} \|= "currencyservice"` shows repeated `context deadline exceeded` / retry log lines matching Module 17's `VirtualService` retry policy (3 attempts, `perTryTimeout: 2s`) actually firing — confirms currencyservice's issue is network-layer, not a code bug |
-| 14:04:40 | `kubectl get events -n online-boutique --sort-by=.lastTimestamp` shows `Killing` events for two different `cartservice` pods, no `Unhealthy` liveness-probe events before either — ruling out a probe failure and pointing at something killing pods directly |
+| 14:04:40 | `kubectl get events -n online-boutique --sort-by=.lastTimestamp` shows a single `Killing` event for one `cartservice` pod (`PodChaos` uses `mode: one` — a one-shot kill of exactly one pod, not a recurring one), no `Unhealthy` liveness-probe event before it — ruling out a probe failure and pointing at something killing the pod directly |
 | 14:05:00 | Root cause identified for both (see below) |
 | 14:05:30 | No mitigation needed — both faults were on a bounded `duration`/`deadline` and self-terminated; confirmed via `kubectl get workflow,podchaos,networkchaos -n online-boutique` returning empty |
 

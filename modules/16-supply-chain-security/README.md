@@ -24,23 +24,19 @@ After this module you will:
 ## Architecture
 
 ```
-┌─────────────────────┐      ┌─────────────────────────┐
-│    Trivy Operator      │      │      supply-chain-demo       │  (new, isolated namespace)
-│  scans every real       │      │                                │
-│  running image           │      │  ┌───────────────────────┐  │
-│  (online-boutique, etc.)  │      │  │      registry (self-       │  │
-│  -> VulnerabilityReport   │      │  │      hosted, Longhorn-      │  │
-│     CRDs                  │      │  │      backed)                 │  │
-└─────────────────────┘      │  │                                │  │
-                                │  │  test-image:v1 (signed) ✅   │  │
-   trivy CLI (workstation,       │  │  unsigned-test:v1 (not) ❌   │  │
-   one-off) ──▶ SBOM for           │  └───────────────────────┘  │
-   frontend's real image             │             ▲                  │
-                                       │             │ verifyImages     │
-                                       │      Kyverno (Module 06,       │
-                                       │      extended: registryClient. │
-                                       │      allowInsecure=true)        │
-                                       └─────────────────────────┘
+  Trivy Operator                       supply-chain-demo (new, isolated namespace)
+  --------------                       -----------------------------------------
+  scans every real                     ┌────────────────────────────────────┐
+  running image                        │ registry (self-hosted,                │
+  (online-boutique, etc.)              │ Longhorn-backed)                       │
+  -> VulnerabilityReport CRDs          │                                         │
+                                        │  test-image:v1     (signed)       ✅  │
+  trivy CLI (workstation,              │  unsigned-test:v1   (not signed)   ❌  │
+  one-off) --> SBOM for                └────────────────────────────────────┘
+  frontend's real image                                    ▲
+                                                             │ verifyImages
+                                                     Kyverno (Module 06, extended:
+                                                     registryClient.allowInsecure=true)
 ```
 
 ## Theory

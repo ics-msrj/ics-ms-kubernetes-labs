@@ -123,7 +123,7 @@ bash modules/12-progressive-delivery/scripts/destroy.sh
 
 - `AnalysisTemplate` is what turns a staged rollout into an automated gate — without it, "canary" just means "slower," not "safer."
 - Canary (gradual, continuous exposure) and blue-green (staged, instant cutover) solve different problems — pick based on whether partial exposure to two live versions at once is acceptable for that specific service.
-- Changing a workload's controller kind (Deployment → Rollout) breaks anything that referenced the old kind by name — HPA here, but the same applies to PodDisruptionBudgets, VerticalPodAutoscalers, or anything else with a `scaleTargetRef`/`targetRef`.
+- Changing a workload's controller kind (Deployment → Rollout) breaks anything that references the old kind by name via a `scaleTargetRef`/`targetRef` field — HPA here, and the same applies to a VerticalPodAutoscaler's `targetRef`. A PodDisruptionBudget is the exception worth knowing: it matches pods by label `selector`, not by owning-controller kind, so it keeps working across a Deployment→Rollout conversion as long as the pod labels don't change.
 
 ## Next Module
 
