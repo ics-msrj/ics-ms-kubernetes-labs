@@ -77,12 +77,27 @@ cat modules/00-prerequisites/README.md   # start here
 
 Each module's README is self-contained: read it, run `setup.sh`, run `verify.sh`, then move to the next module. Full walkthrough starts at [`modules/00-prerequisites/`](modules/00-prerequisites/).
 
+## lab.sh — optional CLI
+
+A thin wrapper around the exact commands above — it doesn't replace reading a module's README, it just saves looking up paths and remembering which modules deviate from the standard `setup.sh`/`verify.sh`/`destroy.sh` contract (Module 01's VM bootstrap, Module 99's `check-readiness.sh`, and a few modules' extra one-off scripts like Module 14's `promote-canary.sh`).
+
+```bash
+./lab.sh list              # every module, number + name + status
+./lab.sh scripts 14        # what scripts a module actually has
+./lab.sh setup   02        # bash modules/02-core-workloads/scripts/setup.sh
+./lab.sh verify  02
+./lab.sh destroy 02
+./lab.sh run 18 gameday-node-failure.sh break   # any non-standard script, by name
+./lab.sh status             # runs every module's verify.sh, one summary table
+```
+
 ## Repository Structure
 
 ```
 .
 ├── README.md
 ├── CURRICULUM.md
+├── lab.sh                     # optional CLI wrapper around every module's scripts (see below)
 ├── modules/                   # 00 → 99, one directory per module (see Module Contract above)
 ├── workloads/
 │   └── online-boutique/       # vendored upstream manifests + our overlays
