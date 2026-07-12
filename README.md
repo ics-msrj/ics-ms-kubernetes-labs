@@ -88,7 +88,7 @@ A thin wrapper around the exact commands above — it doesn't replace reading a 
 ./lab.sh verify  02
 ./lab.sh destroy 02
 ./lab.sh run 18 gameday-node-failure.sh break   # any non-standard script, by name
-./lab.sh status             # runs every module's verify.sh, one summary table
+./lab.sh status             # runs every module's verify.sh; non-zero if any fail
 ```
 
 ## Repository Structure

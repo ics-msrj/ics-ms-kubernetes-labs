@@ -15,6 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(cd "${MODULE_DIR}/../.." && pwd)"
 GENERATED_DIR="${MODULE_DIR}/generated"
+DRILL_BRANCH="capstone-drill"
+ROOT_REVISION_FILE="${GENERATED_DIR}/root-app-target-revision.before"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -27,35 +29,47 @@ echo "  Module 99 — Capstone — Cleanup"
 echo "================================================================"
 echo ""
 
-# --- GitOps: repoint ArgoCD back, delete the drill branch ---
+# --- GitOps: restore root-app first, then delete the drill branch ---
 RESTORE_REVISION="main"
-if [[ -f "${GENERATED_DIR}/argocd-target-revision.before" ]]; then
-  RESTORE_REVISION="$(cat "${GENERATED_DIR}/argocd-target-revision.before")"
+if [[ -f "$ROOT_REVISION_FILE" ]]; then
+  RESTORE_REVISION="$(cat "$ROOT_REVISION_FILE")"
 fi
 
-if kubectl get application online-boutique-packaged -n argocd &>/dev/null; then
-  CURRENT="$(kubectl get application online-boutique-packaged -n argocd -o jsonpath='{.spec.source.targetRevision}')"
-  if [[ "$CURRENT" == "capstone-drill" ]]; then
-    kubectl patch application online-boutique-packaged -n argocd --type merge \
+if kubectl get application root-app -n argocd &>/dev/null; then
+  CURRENT="$(kubectl get application root-app -n argocd -o jsonpath='{.spec.source.targetRevision}')"
+  if [[ "$CURRENT" == "$DRILL_BRANCH" ]]; then
+    kubectl patch application root-app -n argocd --type merge \
       -p "{\"spec\":{\"source\":{\"targetRevision\":\"${RESTORE_REVISION}\"}}}" &>/dev/null
-    log_ok "online-boutique-packaged repointed back to ${RESTORE_REVISION}"
+    log_ok "root-app repointed back to ${RESTORE_REVISION}"
   else
-    log_info "online-boutique-packaged already on '${CURRENT}' — nothing to repoint"
+    log_info "root-app already on '${CURRENT}' — nothing to repoint"
   fi
 else
-  log_warn "ArgoCD Application online-boutique-packaged not found — skipping"
+  log_warn "ArgoCD Application root-app not found — skipping"
 fi
 
-if git -C "$REPO_ROOT" ls-remote --exit-code --heads origin capstone-drill &>/dev/null; then
-  git -C "$REPO_ROOT" push origin --delete capstone-drill &>/dev/null \
-    && log_ok "capstone-drill branch deleted from origin" \
-    || log_warn "Could not delete capstone-drill branch — remove it manually: git push origin --delete capstone-drill"
+for _ in $(seq 1 30); do
+  CHILD_REVISION="$(kubectl get application online-boutique-packaged -n argocd -o jsonpath='{.spec.source.targetRevision}' 2>/dev/null)"
+  [[ "$CHILD_REVISION" != "$DRILL_BRANCH" ]] && break
+  sleep 2
+done
+if [[ "${CHILD_REVISION:-}" == "$DRILL_BRANCH" ]]; then
+  log_warn "online-boutique-packaged still references ${DRILL_BRANCH}; keeping the branch available for ArgoCD"
+elif git -C "$REPO_ROOT" ls-remote --exit-code --heads origin "$DRILL_BRANCH" &>/dev/null; then
+  git -C "$REPO_ROOT" push origin --delete "$DRILL_BRANCH" &>/dev/null \
+    && log_ok "${DRILL_BRANCH} branch deleted from origin" \
+    || log_warn "Could not delete ${DRILL_BRANCH} from origin — remove it manually: git push origin --delete ${DRILL_BRANCH}"
 else
-  log_info "No capstone-drill branch on origin — nothing to delete"
+  log_info "No ${DRILL_BRANCH} branch on origin — nothing to delete"
 fi
 
 git -C "$REPO_ROOT" worktree prune &>/dev/null || true
-rm -f "${GENERATED_DIR}/argocd-target-revision.before"
+if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/${DRILL_BRANCH}"; then
+  git -C "$REPO_ROOT" branch -D "$DRILL_BRANCH" &>/dev/null \
+    && log_ok "${DRILL_BRANCH} branch deleted locally" \
+    || log_warn "Could not delete local ${DRILL_BRANCH} branch — it may still be checked out in another worktree"
+fi
+rm -f "$ROOT_REVISION_FILE"
 
 # --- TLS: confirm reissued ---
 if kubectl get secret frontend-tls -n online-boutique &>/dev/null; then

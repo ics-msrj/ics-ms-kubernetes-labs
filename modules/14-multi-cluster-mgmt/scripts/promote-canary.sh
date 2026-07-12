@@ -29,6 +29,7 @@ SECOND_KUBECONFIG="${MODULE_DIR}/kubeconfig-cluster2.yaml"
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
 log_ok()   { echo -e "${GREEN}[OK]${NC}    $*"; }
+log_fail() { echo -e "${RED}[FAIL]${NC}  $*" >&2; }
 
 if [[ ! -f "$SECOND_KUBECONFIG" ]]; then
   echo -e "${RED}[ERROR]${NC} ${SECOND_KUBECONFIG} not found. Run this module's setup.sh first." >&2
@@ -61,20 +62,40 @@ echo ""
 echo -e "${BLUE}--- Proving both clusters converged on the identical declared spec ---${NC}"
 PRIMARY_IMAGE=$(kubectl get deployment canary-demo -n default -o jsonpath='{.spec.template.spec.containers[0].image}')
 SECOND_IMAGE=$(KUBECONFIG="$SECOND_KUBECONFIG" kubectl get deployment canary-demo -n default -o jsonpath='{.spec.template.spec.containers[0].image}')
+FAIL=0
 if [[ "$PRIMARY_IMAGE" == "$SECOND_IMAGE" ]]; then
   log_ok "Same image on both clusters: ${PRIMARY_IMAGE}"
 else
-  echo -e "${RED}[FAIL]${NC} Image drift: primary=${PRIMARY_IMAGE} second=${SECOND_IMAGE}"
+  log_fail "Image drift: primary=${PRIMARY_IMAGE} second=${SECOND_IMAGE}"
+  FAIL=1
 fi
 
 echo ""
 echo -e "${BLUE}--- Proving each cluster still knows which one it is ---${NC}"
-kubectl get configmap canary-demo-content -n default -o jsonpath='{.data.index\.html}' | grep -o "Running on: [a-z]*"
-KUBECONFIG="$SECOND_KUBECONFIG" kubectl get configmap canary-demo-content -n default -o jsonpath='{.data.index\.html}' | grep -o "Running on: [a-z]*"
+PRIMARY_CONTENT=$(kubectl get configmap canary-demo-content -n default -o jsonpath='{.data.index\.html}')
+SECOND_CONTENT=$(KUBECONFIG="$SECOND_KUBECONFIG" kubectl get configmap canary-demo-content -n default -o jsonpath='{.data.index\.html}')
+if [[ "$PRIMARY_CONTENT" == *"Running on: primary"* ]]; then
+  log_ok "Primary content identifies the primary cluster"
+else
+  log_fail "Primary content is missing its expected cluster label"
+  FAIL=1
+fi
+if [[ "$SECOND_CONTENT" == *"Running on: second"* ]]; then
+  log_ok "Second content identifies the second cluster"
+else
+  log_fail "Second content is missing its expected cluster label"
+  FAIL=1
+fi
+
+if (( FAIL > 0 )); then
+  echo ""
+  echo -e "${RED}  Promotion verification failed. Both clusters did not converge as expected.${NC}"
+  exit 1
+fi
 
 echo ""
 echo "================================================================"
 echo "  Done. Same manifest, two independent clusters, both converged."
-echo "  Clean up: kubectl delete -f manifests/canary-app.yaml (each cluster)"
+echo "  Clean up: kubectl delete -f modules/14-multi-cluster-mgmt/manifests/canary-app.yaml (each cluster)"
 echo "================================================================"
 echo ""

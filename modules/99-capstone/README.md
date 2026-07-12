@@ -47,7 +47,7 @@ Your cluster, as built by Modules 00-18 — nothing new deployed by this module.
 
 **Why three faults, not one.** A single fault teaches you to read one signal in isolation. This repo's own history has a real example of why that's not enough: Module 18's combined-incident drill exists specifically because two simultaneous symptoms tempt you into one cascading-failure story instead of two separate ones. This module goes further — three faults, spanning three different namespaces/subsystems (GitOps-managed config, Gateway/TLS, in-cluster chaos), each requiring a genuinely different tool to even notice (ArgoCD's sync state, a browser/curl TLS error, Kiali's traffic graph). Getting the *count* right — realizing there are three problems, not one or two — is itself part of what's being tested.
 
-**Why the GitOps fault never touches `main`.** This repo is meant to double as a public portfolio. A "bad commit" fault that actually landed on `main`'s history would be visible to anyone looking at the repo later, which is a real cost for a training exercise to impose. `inject-incident.sh` pushes the bad config to a disposable `capstone-drill` branch instead and repoints the live ArgoCD Application's `targetRevision` at it — same lesson (GitOps synced something bad, recovery means pointing back at what's known-good), zero trace left in the history that matters.
+**Why the GitOps fault never touches `main`.** This repo is meant to double as a public portfolio. A "bad commit" fault that actually landed on `main`'s history would be visible to anyone looking at the repo later, which is a real cost for a training exercise to impose. `inject-incident.sh` pushes the bad config to a disposable `capstone-drill` branch and points `root-app` at it. The drill branch therefore declares both the bad chart value and the child Application's branch, so App-of-Apps `selfHeal` preserves the drill instead of undoing it. Cleanup restores `root-app` before deleting the branch, leaving no trace in the history that matters.
 
 ## Lab
 
@@ -85,8 +85,8 @@ Only after your postmortem is written: `cat modules/99-capstone/scripts/inject-i
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `inject-incident.sh` fails at the git push step | `GITOPS_REPO_URL`/`GITOPS_REPO_REVISION` not set, or no push access to your GitOps remote | Confirm `git push origin capstone-drill` works manually with your current credentials |
-| ArgoCD Application stuck `OutOfSync` after `destroy.sh` | It takes a sync cycle to reconcile back to the restored `targetRevision` | `argocd app sync online-boutique-packaged`, or wait for the next auto-sync |
+| `inject-incident.sh` fails at the git push step | `origin` does not point at the GitOps repository, or your current credentials cannot push there | Confirm `git remote get-url origin` matches the repository root-app uses, then test `git push origin capstone-drill` manually |
+| ArgoCD Application stuck `OutOfSync` after `destroy.sh` | It takes a sync cycle for `root-app` to reconcile the child Application back to the restored revision | `argocd app sync root-app`, or wait for the next auto-sync |
 | `frontend-tls` doesn't reissue on its own | cert-manager/`ClusterIssuer` itself has an underlying problem, not just a deleted Secret | `kubectl describe certificate -n online-boutique`, check the issuer's own health (Module 04's own Troubleshooting table) |
 | Readiness check reports Module 14 `NOT READY` | Module 14's second cluster is genuinely optional infrastructure this module's incident never touches | Ignore it for this drill unless you specifically want full coverage |
 

@@ -85,6 +85,7 @@ if (( NOT_READY > 0 )); then
   done
   echo ""
   echo -e "${YELLOW}Fix what's relevant to your incident before proceeding, or accept the gap and note it in your postmortem.${NC}"
+  exit 1
 fi
 
 echo ""

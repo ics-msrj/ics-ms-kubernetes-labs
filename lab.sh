@@ -18,6 +18,7 @@
 #   ./lab.sh destroy <module>             run its destroy.sh
 #   ./lab.sh run     <module> <script> [args...]   run any other script by name
 #   ./lab.sh status                       run every module's verify.sh, summarize
+#                                         and exit non-zero if any are unhealthy
 #
 # <module> accepts a number (01, 1, 18, 99), a full directory name
 # (01-cluster-setup), or a fuzzy substring (cluster-setup, capstone).
@@ -53,7 +54,9 @@ resolve_module() {
   fi
   if [[ "$input" =~ ^[0-9]+$ ]]; then
     local padded match
-    padded=$(printf '%02d' "$input")
+    # Bash printf treats a leading zero as an octal literal. Force decimal so
+    # user-facing identifiers such as 08 and 09 resolve to their own modules.
+    padded=$(printf '%02d' "$((10#$input))")
     match=$(find "$MODULES_DIR" -maxdepth 1 -type d -name "${padded}-*" | head -1)
     if [[ -n "$match" ]]; then
       echo "$match"
