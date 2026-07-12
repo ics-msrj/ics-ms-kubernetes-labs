@@ -1,0 +1,46 @@
+# Traffic resilience — deliberately NOT another canary (Module 12 already
+# covers gradual rollout). This is what a mesh adds on top: automatic
+# retries and circuit breaking for a service every other service calls
+# constantly (currencyservice — checkoutservice and frontend both depend on
+# it for every price shown or charged). Applies to every caller of
+# currencyservice, not just one.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: currencyservice
+  namespace: online-boutique
+spec:
+  hosts:
+    - currencyservice.online-boutique.svc.cluster.local
+  http:
+    - route:
+        - destination:
+            host: currencyservice.online-boutique.svc.cluster.local
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: 5xx,reset,connect-failure
+      timeout: 5s
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: currencyservice
+  namespace: online-boutique
+spec:
+  host: currencyservice.online-boutique.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      # A currencyservice pod returning 5 straight errors is pulled out of
+      # the load-balancing pool for 30s — the mesh isolating a bad instance
+      # automatically instead of every caller individually retrying into it.
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50

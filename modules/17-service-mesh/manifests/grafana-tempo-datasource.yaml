@@ -1,0 +1,22 @@
+# Same sidecar-discovery mechanism Module 09 used for the Loki datasource —
+# Grafana's sidecar (Module 08) picks up any ConfigMap in its own namespace
+# labeled grafana_datasource: "1".
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-tempo-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  tempo-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Tempo
+        type: tempo
+        access: proxy
+        # Port 3200, not the commonly-assumed 3100 — this chart's own README
+        # documents the change explicitly: "the default port has been
+        # changed from 3100 to 3200, to be consistent with other projects."
+        url: http://tempo.monitoring.svc:3200
+        isDefault: false

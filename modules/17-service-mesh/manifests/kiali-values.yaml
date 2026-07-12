@@ -1,0 +1,14 @@
+# Points Kiali at Module 08's existing Prometheus — no second one. The
+# actual Prometheus URL is passed via --set at install time (needs the
+# real Service address, no reason to duplicate it in two places).
+external_services:
+  istio:
+    root_namespace: istio-system
+  custom_dashboards:
+    enabled: true
+
+auth:
+  strategy: anonymous
+
+# Internal tool, same tier as Prometheus/Alertmanager/OpenCost — kubectl
+# port-forward only.

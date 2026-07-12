@@ -1,0 +1,13 @@
+# STRICT means every sidecar in online-boutique refuses plaintext
+# connections from other pods — mTLS becomes mandatory, not just available.
+# Istio issues and rotates the certificates automatically (its own CA); no
+# cert-manager involvement, unlike everything else in this repo since
+# Module 04 — this is Istio's own, separate PKI, scoped to mesh traffic only.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: online-boutique
+spec:
+  mtls:
+    mode: STRICT

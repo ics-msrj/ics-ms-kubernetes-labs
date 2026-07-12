@@ -1,0 +1,8 @@
+# Grafana Tempo — the "T" in the LGTM stack this repo has been building
+# since Module 08 (Prometheus/Grafana) and Module 09 (Loki). Single-binary
+# mode, same simplicity tradeoff Module 09 made for Loki. Storage on
+# Longhorn (Module 05), same as every other stateful add-on since.
+persistence:
+  enabled: true
+  storageClassName: longhorn
+  size: 10Gi

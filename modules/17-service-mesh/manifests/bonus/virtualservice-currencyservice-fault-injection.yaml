@@ -1,0 +1,37 @@
+# EXERCISE ONLY — not applied by setup.sh, not checked by verify.sh.
+# Injects a 5s delay into 50% of currencyservice calls — on purpose, to
+# prove the retry policy in ../currencyservice-resilience.yaml actually
+# does something under real failure conditions, not just in theory.
+#
+#   kubectl apply -f modules/17-service-mesh/manifests/bonus/virtualservice-currencyservice-fault-injection.yaml
+#   # Browse the app — expect roughly half of price-dependent pages to feel
+#   # slower (the retry's perTryTimeout is 2s, so a 5s injected delay forces
+#   # a retry, which may hit a non-delayed pod and still succeed — or all 3
+#   # attempts could hit delayed pods and the request times out at 5s).
+#   kubectl apply -f modules/17-service-mesh/manifests/currencyservice-resilience.yaml  # reapply to remove the fault (this file overrides it)
+#
+# NOTE: this file and currencyservice-resilience.yaml define the SAME
+# VirtualService (same name/namespace) with different content — applying
+# one replaces the other. That's intentional for this exercise, not a bug.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: currencyservice
+  namespace: online-boutique
+spec:
+  hosts:
+    - currencyservice.online-boutique.svc.cluster.local
+  http:
+    - fault:
+        delay:
+          percentage:
+            value: 50
+          fixedDelay: 5s
+      route:
+        - destination:
+            host: currencyservice.online-boutique.svc.cluster.local
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: 5xx,reset,connect-failure
+      timeout: 5s
