@@ -53,6 +53,13 @@ else
   check_fail "signed-image-test is '${SIGNED_POD_PHASE:-<not found>}', expected Running"
 fi
 
+SIGNED_POD_IMAGE=$(kubectl get pod signed-image-test -n supply-chain-demo -o jsonpath='{.spec.containers[0].image}' 2>/dev/null)
+if [[ "$SIGNED_POD_IMAGE" == *"@sha256:"* ]]; then
+  check_pass "mutateDigest pinned the running pod to a digest, not the mutable :v1 tag"
+else
+  check_fail "signed-image-test's image is still tag-based ('${SIGNED_POD_IMAGE:-<none>}') — mutateDigest didn't take effect, check the ClusterPolicy"
+fi
+
 echo ""
 echo -e "${BLUE}--- Unsigned image is actually rejected (not just theoretically) ---${NC}"
 if command -v crane &>/dev/null; then

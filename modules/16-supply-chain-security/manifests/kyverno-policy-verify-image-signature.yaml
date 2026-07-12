@@ -32,7 +32,14 @@ spec:
       verifyImages:
         - imageReferences:
             - "registry.supply-chain-demo.svc.cluster.local:5000/*"
-          mutateDigest: false
+          # mutateDigest resolves the tag to the exact digest that was just
+          # verified and rewrites the pod spec to reference THAT digest
+          # instead of the mutable tag — closes the gap where the tag could
+          # be repointed between this admission check and kubelet's actual
+          # pull. verifyDigest stays false: it would instead REQUIRE the
+          # incoming pod spec to already reference a digest, which would
+          # break every tag-based example in this module's own README.
+          mutateDigest: true
           verifyDigest: false
           required: true
           attestors:

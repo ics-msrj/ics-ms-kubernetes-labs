@@ -45,6 +45,8 @@ After this module you will:
 
 **What a signature does and doesn't claim.** `cosign sign --key cosign.key` produces a cryptographic statement: "the holder of this private key vouches for this exact image digest." It says nothing about code quality, nothing about vulnerabilities, nothing about intent — a maliciously-crafted image can be signed just as validly as a careful one, *by whoever holds the key*. What it's actually useful for is closing a different gap entirely: proving an image wasn't swapped or tampered with between whoever built it and whoever's about to run it. Vulnerability scanning and signing answer different questions; a real supply-chain policy needs both, which is why this module builds both instead of picking one.
 
+**Why a verified signature alone still isn't enough — the TOCTOU gap `mutateDigest` closes.** Kyverno's `verifyImages` checks the signature against whatever digest the tag resolves to *at admission time*. Without `mutateDigest`, the pod spec still stores the mutable tag (`:v1`), not the digest that was actually verified — so kubelet does its own separate pull later, by tag, trusting that the tag still points at the same content. If the tag gets repointed in between (accidentally, or by an attacker with registry access), kubelet pulls whatever the tag now resolves to, never re-checking the signature. `mutateDigest: true` closes this by rewriting the pod spec to the exact digest that was just verified — Module 06's own `disallow-latest-tag` policy comment already promised this ("introduced in Module 16"); this is that promise kept, not a new feature bolted on. Check it yourself: `kubectl get pod signed-image-test -n supply-chain-demo -o jsonpath='{.spec.containers[0].image}'` shows an `@sha256:...` reference, not `:v1`, even though `:v1` is what was requested.
+
 **Why the verification policy only covers `supply-chain-demo`.** Every image in `online-boutique` comes from Google's public registry, signed (if at all) with a key this lab has no access to. A `verifyImages` policy matching those images against *our* public key would reject 100% of them — not a demonstration of security, just a broken application. The `imageReferences` pattern (`registry.supply-chain-demo.svc.cluster.local:5000/*`) scopes enforcement to exactly the one registry this lab controls end-to-end: the same discipline as Module 06's RBAC (`viewer`/`ci-deployer` scoped to what's actually needed) applied to image provenance instead of API verbs. Extending this cluster-wide for real would mean re-signing (or re-tagging with a re-signed copy from) every image actually in use — a real migration project, not a policy tweak.
 
 **Why Kyverno needed `registryClient.allowInsecure=true`.** Verifying a signature means Kyverno's own controller has to reach out to the registry and fetch it — by default it assumes registries speak HTTPS, which our plain-HTTP self-hosted one (no TLS configured, deliberately, for lab simplicity) doesn't. This is a real gotcha worth knowing exists: a `verifyImages` policy that looks correctly configured can still fail purely because the registry connection itself was refused, not because the signature was invalid — `kubectl describe` the rejected pod's events to tell the two apart. `setup.sh` records Kyverno's prior setting and `destroy.sh` restores it, so the lab does not leave that global relaxation behind.
@@ -95,6 +97,14 @@ kubectl run wrong-key-test -n supply-chain-demo --image=registry.supply-chain-de
 
 Signed, but with a key Kyverno's policy doesn't trust — expect the same rejection as the fully-unsigned case. A signature existing isn't enough; it has to verify against the *specific* public key the policy names.
 
+### Step 6 — Confirm the running pod is pinned by digest, not tag
+
+```bash
+kubectl get pod signed-image-test -n supply-chain-demo -o jsonpath='{.spec.containers[0].image}'
+```
+
+You requested `:v1`. What comes back is `registry.supply-chain-demo.svc.cluster.local:5000/test-image@sha256:...` — Kyverno's `mutateDigest` rewrote the pod spec to the exact digest it just verified, closing the gap where the tag could be repointed after admission and kubelet would pull the new content without ever re-checking the signature.
+
 ## Failure Simulation
 
 | Scenario | How to break it | Detect | Recover |
@@ -124,6 +134,7 @@ bash modules/16-supply-chain-security/scripts/destroy.sh
 - SBOM = a fixed inventory of one image; vulnerability scanning = an assessment against a database that changes daily — the same image can need re-scanning without ever being rebuilt.
 - A signature proves provenance (who), not safety (what) — pair it with scanning, don't substitute one for the other.
 - Scoping an admission policy to exactly what it can correctly enforce (one self-controlled registry) beats a broken cluster-wide policy that "looks" more secure on paper.
+- Verifying a signature at admission time isn't the same as pinning what actually runs — without `mutateDigest`, the pod spec still trusts a mutable tag that could be repointed after the check. Digest pinning is what makes the verification durable, not just a point-in-time gate.
 
 ## Next Module
 
