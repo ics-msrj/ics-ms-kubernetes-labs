@@ -102,15 +102,15 @@ resource "alicloud_security_group_rule" "gateway_https" {
 }
 
 resource "alicloud_security_group_rule" "node_to_node" {
-  type                     = "ingress"
-  ip_protocol              = "all"
-  nic_type                 = "intranet"
-  policy                   = "accept"
-  port_range               = "-1/-1"
-  priority                 = 1
-  security_group_id        = alicloud_security_group.nodes.id
-  source_security_group_id = alicloud_security_group.nodes.id
-  description              = "Kubernetes, Cilium, and Longhorn node-to-node traffic"
+  type              = "ingress"
+  ip_protocol       = "all"
+  nic_type          = "intranet"
+  policy            = "accept"
+  port_range        = "-1/-1"
+  priority          = 1
+  security_group_id = alicloud_security_group.nodes.id
+  cidr_ip           = var.vpc_cidr
+  description       = "Kubernetes, Cilium, and Longhorn node-to-node traffic"
 }
 
 resource "alicloud_security_group_rule" "egress" {
