@@ -45,7 +45,8 @@ echo -e "${BLUE}--- OpenCost ---${NC}"
 OC_READY=$(kubectl get deployment opencost -n opencost -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
 [[ -n "$OC_READY" && "$OC_READY" != "0" ]] && check_pass "OpenCost is ready" || check_fail "OpenCost is not ready"
 
-HEALTH=$(kubectl run opencost-health-$$ --image=curlimages/curl:latest --restart=Never --rm -q -i --timeout=30s -- \
+HEALTH=$(kubectl run opencost-health-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+  --overrides="{\"spec\":{\"containers\":[{\"name\":\"opencost-health-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
   curl -s --max-time 10 -o /dev/null -w "%{http_code}" "http://opencost.opencost.svc:9003/healthz" \
   </dev/null 2>/dev/null)
 if [[ "$HEALTH" == "200" ]]; then
@@ -54,7 +55,8 @@ else
   check_warn "OpenCost /healthz returned '${HEALTH:-<none>}' — it may still be building its initial cost model, give it a few minutes"
 fi
 
-ALLOCATION=$(kubectl run opencost-alloc-$$ --image=curlimages/curl:latest --restart=Never --rm -q -i --timeout=30s -- \
+ALLOCATION=$(kubectl run opencost-alloc-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+  --overrides="{\"spec\":{\"containers\":[{\"name\":\"opencost-alloc-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
   curl -s --max-time 10 "http://opencost.opencost.svc:9003/allocation/compute?window=10m" \
   </dev/null 2>/dev/null)
 if echo "$ALLOCATION" | grep -q '"code":200'; then

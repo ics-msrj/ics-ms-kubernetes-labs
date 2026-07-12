@@ -50,7 +50,7 @@ spec:
               drop: ["ALL"]
             privileged: false
             readOnlyRootFilesystem: true
-          image: redis:alpine
+          image: redis:7.2.5-alpine
           env:
             - name: REDIS_PASSWORD
               valueFrom:

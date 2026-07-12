@@ -73,11 +73,12 @@ kubectl auth can-i delete pods -n online-boutique --as=system:serviceaccount:onl
 
 # PSA: try to run something restricted forbids
 kubectl run root-test -n online-boutique --image=busybox:1.36 --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"root-test","image":"busybox:1.36","securityContext":{"runAsUser":0}}]}}'
+  --overrides='{"spec":{"containers":[{"name":"root-test","image":"busybox:1.36","securityContext":{"runAsUser":0},"resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}'
 # -> forbidden: violates PodSecurity "restricted"
 
 # Kyverno: try to deploy an unpinned image
-kubectl run latest-test -n online-boutique --image=nginx --restart=Never
+kubectl run latest-test -n online-boutique --image=nginx:latest --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"latest-test","image":"nginx:latest","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}'
 # -> rejected by the disallow-latest-tag policy before PSA even gets a turn
 ```
 

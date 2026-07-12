@@ -97,7 +97,9 @@ That last one — log volume per container over time — is a genuine LogQL metr
 Re-trigger Module 08's `PodRestartingFrequently` alert:
 
 ```bash
-kubectl run crash-test -n online-boutique --image=busybox:1.36 --restart=Always -- sh -c "exit 1"
+kubectl run crash-test -n online-boutique --image=busybox:1.36.1 --restart=Always \
+  --overrides='{"spec":{"containers":[{"name":"crash-test","image":"busybox:1.36.1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+  -- sh -c "exit 1"
 ```
 
 Then in Grafana's Explore, query `{namespace="online-boutique", pod=~"crash-test.*"}` and read the actual failure — this is the "why" the metric alone never told you. Clean up: `kubectl delete pod crash-test -n online-boutique`.

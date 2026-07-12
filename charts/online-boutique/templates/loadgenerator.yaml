@@ -28,7 +28,7 @@ spec:
         {{- toYaml .Values.securityContext.pod | nindent 8 }}
       initContainers:
         - name: frontend-check
-          image: busybox:latest
+          image: busybox:1.36.1
           securityContext:
             {{- toYaml .Values.securityContext.container | nindent 12 }}
           command:

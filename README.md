@@ -96,6 +96,6 @@ Each module's README is self-contained: read it, run `setup.sh`, run `verify.sh`
 │   └── apps/                   # child Applications ArgoCD reads from Git
 ├── .gitlab-ci.yml              # primary CI (Module 11)
 ├── .github/workflows/          # mirrored CI on the GitHub remote
-├── scripts/                   # cross-module helpers (status, resume, global destroy)
+├── scripts/                   # reserved for future cross-module helpers
 └── docs/                      # failure-simulation matrix, assessment checklists, diagrams
 ```

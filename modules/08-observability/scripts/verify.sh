@@ -18,7 +18,8 @@ check_fail() { echo -e "  ${RED}FAIL${NC}  $1"; FAIL=$((FAIL+1)); }
 check_warn() { echo -e "  ${YELLOW}WARN${NC}  $1"; WARN=$((WARN+1)); }
 
 prom_query() {
-  kubectl run prom-verify-$$ --image=curlimages/curl:latest --restart=Never --rm -q -i --timeout=30s -- \
+  kubectl run prom-verify-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+    --overrides="{\"spec\":{\"containers\":[{\"name\":\"prom-verify-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
     curl -s --max-time 10 "http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090/api/v1/$1" \
     </dev/null 2>/dev/null
 }
@@ -87,7 +88,8 @@ ROUTE_ACCEPTED=$(kubectl get httproute grafana -n monitoring -o jsonpath='{.stat
 [[ "$ROUTE_ACCEPTED" == "True" ]] && check_pass "HTTPRoute grafana is Accepted" || check_fail "HTTPRoute grafana not Accepted (got '${ROUTE_ACCEPTED:-<none>}')"
 
 if [[ -n "$APP_DOMAIN" ]]; then
-  HEALTH=$(kubectl run grafana-health-$$ --image=curlimages/curl:latest --restart=Never --rm -q -i --timeout=30s -- \
+  HEALTH=$(kubectl run grafana-health-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+    --overrides="{\"spec\":{\"containers\":[{\"name\":\"grafana-health-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
     curl -sk --max-time 10 -o /dev/null -w "%{http_code}" "https://${GRAFANA_DOMAIN}/api/health" \
     </dev/null 2>/dev/null)
   if [[ "$HEALTH" == "200" ]]; then

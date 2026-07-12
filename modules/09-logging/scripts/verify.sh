@@ -12,7 +12,8 @@ check_fail() { echo -e "  ${RED}FAIL${NC}  $1"; FAIL=$((FAIL+1)); }
 check_warn() { echo -e "  ${YELLOW}WARN${NC}  $1"; WARN=$((WARN+1)); }
 
 loki_get() {
-  kubectl run loki-verify-$$ --image=curlimages/curl:latest --restart=Never --rm -q -i --timeout=30s -- \
+  kubectl run loki-verify-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+    --overrides="{\"spec\":{\"containers\":[{\"name\":\"loki-verify-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
     curl -s --max-time 10 "http://loki-gateway.monitoring.svc.cluster.local$1" \
     </dev/null 2>/dev/null
 }

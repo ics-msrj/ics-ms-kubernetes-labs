@@ -87,8 +87,10 @@ fi
 probe_redis() {
   local name="$1" labels="$2"
   kubectl delete pod "$name" -n online-boutique --ignore-not-found=true --wait=true &>/dev/null
-  kubectl run "$name" -n online-boutique --image=busybox:1.36 --restart=Never \
-    --labels="$labels" --command -- sh -c "nc -z -w3 redis-cart 6379" &>/dev/null
+  kubectl run "$name" -n online-boutique --image=busybox:1.36.1 --restart=Never \
+    --labels="$labels" \
+    --overrides="{\"spec\":{\"containers\":[{\"name\":\"${name}\",\"image\":\"busybox:1.36.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" \
+    --command -- sh -c "nc -z -w3 redis-cart 6379" &>/dev/null
   kubectl wait pod "$name" -n online-boutique --for=jsonpath='{.status.phase}'=Succeeded --timeout=25s &>/dev/null
   local result=$?
   kubectl delete pod "$name" -n online-boutique --ignore-not-found=true --wait=false &>/dev/null

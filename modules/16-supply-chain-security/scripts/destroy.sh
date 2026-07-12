@@ -7,6 +7,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$(dirname "$SCRIPT_DIR")"
+KYVERNO_ALLOW_INSECURE_FILE="${MODULE_DIR}/generated/kyverno-registry-client-allow-insecure.before"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -28,10 +29,24 @@ if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-pkill -f "port-forward.*supply-chain-demo.*5000" 2>/dev/null || true
 kubectl delete clusterpolicy verify-signed-images-supply-chain-demo --ignore-not-found=true
 kubectl delete namespace supply-chain-demo --ignore-not-found=true
 log_ok "Policy and supply-chain-demo namespace removed"
+
+if [[ -f "${KYVERNO_ALLOW_INSECURE_FILE}" ]]; then
+  KYVERNO_ALLOW_INSECURE_BEFORE="$(<"${KYVERNO_ALLOW_INSECURE_FILE}")"
+  if [[ "${KYVERNO_ALLOW_INSECURE_BEFORE}" == "true" || "${KYVERNO_ALLOW_INSECURE_BEFORE}" == "false" ]]; then
+    log_info "Restoring Kyverno registryClient.allowInsecure=${KYVERNO_ALLOW_INSECURE_BEFORE}..."
+    helm upgrade kyverno kyverno/kyverno -n kyverno --reuse-values \
+      --set "registryClient.allowInsecure=${KYVERNO_ALLOW_INSECURE_BEFORE}" \
+      --wait --timeout 3m
+    log_ok "Kyverno registry client setting restored"
+  else
+    log_warn "Saved Kyverno registry setting is invalid; leaving the current value unchanged"
+  fi
+else
+  log_warn "No saved Kyverno registry setting found; leaving the current value unchanged"
+fi
 
 if kubectl get namespace trivy-system &>/dev/null; then
   helm uninstall trivy-operator -n trivy-system &>/dev/null || true

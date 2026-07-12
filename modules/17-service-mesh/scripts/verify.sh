@@ -57,7 +57,8 @@ TEMPO_READY=$(kubectl get statefulset tempo -n monitoring -o jsonpath='{.status.
 kubectl get configmap grafana-tempo-datasource -n monitoring -l grafana_datasource=1 &>/dev/null \
   && check_pass "Grafana Tempo datasource ConfigMap exists" || check_fail "Grafana Tempo datasource not found"
 
-TRACE_SEARCH=$(kubectl run tempo-verify-$$ --image=curlimages/curl:latest --restart=Never --rm -q -i --timeout=30s -- \
+TRACE_SEARCH=$(kubectl run tempo-verify-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+  --overrides="{\"spec\":{\"containers\":[{\"name\":\"tempo-verify-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
   curl -s --max-time 10 "http://tempo.monitoring.svc:3200/api/search?tags=service.name%3Dfrontend" \
   </dev/null 2>/dev/null)
 if echo "$TRACE_SEARCH" | grep -q '"traceID"'; then

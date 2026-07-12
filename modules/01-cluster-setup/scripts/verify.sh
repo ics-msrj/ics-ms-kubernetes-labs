@@ -112,8 +112,9 @@ fi
 echo ""
 echo -e "${BLUE}--- Pod-to-pod networking / DNS ---${NC}"
 
-if kubectl run nettest-1 --image=busybox:1.36 \
+if kubectl run nettest-1 --image=busybox:1.36.1 \
   --restart=Never --rm -q -i \
+  --overrides='{"spec":{"containers":[{"name":"nettest-1","image":"busybox:1.36.1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
   --command -- wget -qO- --timeout=10 http://kubernetes.default.svc.cluster.local/ \
   </dev/null &>/dev/null; then
   check_pass "DNS resolution (kubernetes.default.svc.cluster.local) works"

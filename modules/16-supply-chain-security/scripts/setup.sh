@@ -23,6 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(cd "${MODULE_DIR}/../.." && pwd)"
 GENERATED_DIR="${MODULE_DIR}/generated"
+KYVERNO_ALLOW_INSECURE_FILE="${GENERATED_DIR}/kyverno-registry-client-allow-insecure.before"
 
 TRIVY_VERSION="${TRIVY_VERSION:-0.72.0}"
 CRANE_VERSION="${CRANE_VERSION:-0.21.7}"
@@ -48,6 +49,10 @@ if ! kubectl get storageclass longhorn &>/dev/null; then
 fi
 if ! command -v yq &>/dev/null; then
   echo -e "${RED}[ERROR]${NC} yq not found. Complete Module 00 first." >&2
+  exit 1
+fi
+if ! command -v jq &>/dev/null; then
+  echo -e "${RED}[ERROR]${NC} jq not found. Complete Module 00 first." >&2
   exit 1
 fi
 
@@ -115,9 +120,15 @@ kubectl create namespace supply-chain-demo --dry-run=client -o yaml | kubectl ap
 kubectl apply -f "${MODULE_DIR}/manifests/registry.yaml"
 kubectl rollout status deployment/registry -n supply-chain-demo --timeout=120s
 
-pkill -f "port-forward.*supply-chain-demo.*5000" 2>/dev/null || true
-sleep 1
-kubectl port-forward -n supply-chain-demo svc/registry 5000:5000 &>/dev/null &
+REGISTRY_PF_PID=""
+cleanup_registry_port_forward() {
+  if [[ -n "${REGISTRY_PF_PID}" ]]; then
+    kill "${REGISTRY_PF_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup_registry_port_forward EXIT
+
+kubectl port-forward --address 127.0.0.1 -n supply-chain-demo svc/registry 5000:5000 &>/dev/null &
 REGISTRY_PF_PID=$!
 sleep 3
 
@@ -135,10 +146,17 @@ log_info "Signing the test image..."
 COSIGN_PASSWORD="" cosign sign --key "${GENERATED_DIR}/cosign.key" --allow-insecure-registry -y localhost:5000/test-image:v1
 log_ok "Image signed"
 
-kill "$REGISTRY_PF_PID" 2>/dev/null || true
+cleanup_registry_port_forward
+REGISTRY_PF_PID=""
 
 # --- Step 5: Kyverno verifyImages policy ---
 log_info "Allowing Kyverno's registry client to reach our plain-HTTP in-cluster registry..."
+KYVERNO_ALLOW_INSECURE_BEFORE="$(helm get values kyverno -n kyverno --all -o json | jq -r '.registryClient.allowInsecure // false')"
+if [[ "${KYVERNO_ALLOW_INSECURE_BEFORE}" != "true" && "${KYVERNO_ALLOW_INSECURE_BEFORE}" != "false" ]]; then
+  echo -e "${RED}[ERROR]${NC} Could not determine Kyverno's current registryClient.allowInsecure value." >&2
+  exit 1
+fi
+printf '%s\n' "${KYVERNO_ALLOW_INSECURE_BEFORE}" > "${KYVERNO_ALLOW_INSECURE_FILE}"
 helm upgrade kyverno kyverno/kyverno -n kyverno --reuse-values \
   --set registryClient.allowInsecure=true \
   --wait --timeout 3m

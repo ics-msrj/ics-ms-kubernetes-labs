@@ -72,7 +72,7 @@ spec:
         - name: redis
           securityContext:
             {{- toYaml .Values.securityContext.container | nindent 12 }}
-          image: redis:alpine
+          image: redis:7.2.5-alpine
           env:
             - name: REDIS_PASSWORD
               valueFrom:

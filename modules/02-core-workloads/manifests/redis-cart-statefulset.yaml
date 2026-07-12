@@ -58,7 +58,7 @@ spec:
                 - ALL
             privileged: false
             readOnlyRootFilesystem: true
-          image: redis:alpine
+          image: redis:7.2.5-alpine
           ports:
             - containerPort: 6379
           readinessProbe:

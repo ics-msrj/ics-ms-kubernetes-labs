@@ -85,7 +85,9 @@ kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-alertmanager 9
 Open `http://localhost:9093`. Trigger `PodRestartingFrequently` for real:
 
 ```bash
-kubectl run crash-test -n online-boutique --image=busybox:1.36 --restart=Always -- sh -c "exit 1"
+kubectl run crash-test -n online-boutique --image=busybox:1.36.1 --restart=Always \
+  --overrides='{"spec":{"containers":[{"name":"crash-test","image":"busybox:1.36.1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+  -- sh -c "exit 1"
 ```
 
 Give it 15 minutes (the rule's evaluation window) — or lower `for`/the range in `manifests/prometheusrule-alerts.yaml` and re-apply it to see it faster while you're learning. Clean up after: `kubectl delete pod crash-test -n online-boutique`.

@@ -98,7 +98,9 @@ TLS_ISSUER=letsencrypt-production bash modules/04-networking-gateway/scripts/set
 ### Step 5 — Prove the NetworkPolicy, not just trust it
 
 ```bash
-kubectl run probe --image=busybox:1.36 --restart=Never -n online-boutique --rm -it -- sh -c "nc -zv -w3 redis-cart 6379"
+kubectl run probe --image=busybox:1.36.1 --restart=Never -n online-boutique --rm -it \
+  --overrides='{"spec":{"containers":[{"name":"probe","image":"busybox:1.36.1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+  -- sh -c "nc -zv -w3 redis-cart 6379"
 ```
 
 This should hang/fail — this pod isn't labeled `app=cartservice`. That's `verify.sh`'s own test, made visible.

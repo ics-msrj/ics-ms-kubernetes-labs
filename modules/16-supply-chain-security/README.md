@@ -19,7 +19,7 @@ After this module you will:
 
 - [Module 06](../06-security-policy/) verified — this module extends the same Kyverno install, and reuses its `require-resource-limits` policy interaction (see Troubleshooting).
 - [Module 05](../05-storage/) verified — the self-hosted registry's storage is a Longhorn PVC.
-- [Module 00](../00-prerequisites/)'s `yq` — used to inject the generated public key into the Kyverno policy safely (see Theory).
+- [Module 00](../00-prerequisites/)'s `yq` and `jq` — used to inject the generated public key safely and restore Kyverno's prior registry-client setting during cleanup.
 
 ## Architecture
 
@@ -51,7 +51,7 @@ After this module you will:
 
 **Why the verification policy only covers `supply-chain-demo`.** Every image in `online-boutique` comes from Google's public registry, signed (if at all) with a key this lab has no access to. A `verifyImages` policy matching those images against *our* public key would reject 100% of them — not a demonstration of security, just a broken application. The `imageReferences` pattern (`registry.supply-chain-demo.svc.cluster.local:5000/*`) scopes enforcement to exactly the one registry this lab controls end-to-end: the same discipline as Module 06's RBAC (`viewer`/`ci-deployer` scoped to what's actually needed) applied to image provenance instead of API verbs. Extending this cluster-wide for real would mean re-signing (or re-tagging with a re-signed copy from) every image actually in use — a real migration project, not a policy tweak.
 
-**Why Kyverno needed `registryClient.allowInsecure=true`.** Verifying a signature means Kyverno's own controller has to reach out to the registry and fetch it — by default it assumes registries speak HTTPS, which our plain-HTTP self-hosted one (no TLS configured, deliberately, for lab simplicity) doesn't. This is a real, one-line gotcha worth knowing exists: a `verifyImages` policy that looks correctly configured can still fail purely because the registry connection itself was refused, not because the signature was invalid — `kubectl describe` the rejected pod's events to tell the two apart.
+**Why Kyverno needed `registryClient.allowInsecure=true`.** Verifying a signature means Kyverno's own controller has to reach out to the registry and fetch it — by default it assumes registries speak HTTPS, which our plain-HTTP self-hosted one (no TLS configured, deliberately, for lab simplicity) doesn't. This is a real gotcha worth knowing exists: a `verifyImages` policy that looks correctly configured can still fail purely because the registry connection itself was refused, not because the signature was invalid — `kubectl describe` the rejected pod's events to tell the two apart. `setup.sh` records Kyverno's prior setting and `destroy.sh` restores it, so the lab does not leave that global relaxation behind.
 
 ## Lab
 
@@ -93,7 +93,8 @@ cosign generate-key-pair --output-key-prefix /tmp/wrong-key   # a second, unrela
 kubectl port-forward -n supply-chain-demo svc/registry 5000:5000 &
 COSIGN_PASSWORD="" cosign sign --key /tmp/wrong-key.key --allow-insecure-registry -y localhost:5000/test-image:v1
 kubectl delete pod wrong-key-test -n supply-chain-demo --ignore-not-found
-kubectl run wrong-key-test -n supply-chain-demo --image=registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1 --restart=Never
+kubectl run wrong-key-test -n supply-chain-demo --image=registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"wrong-key-test","image":"registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}'
 ```
 
 Signed, but with a key Kyverno's policy doesn't trust — expect the same rejection as the fully-unsigned case. A signature existing isn't enough; it has to verify against the *specific* public key the policy names.
@@ -112,7 +113,7 @@ Signed, but with a key Kyverno's policy doesn't trust — expect the same reject
 |---|---|---|
 | `signed-image-test` rejected even though it was actually signed correctly | Kyverno's `registryClient.allowInsecure` didn't take effect — check the `helm upgrade` in `setup.sh` actually completed | `kubectl get deployment kyverno-admission-controller -n kyverno -o yaml \| grep -A2 registryClient` (or check the controller's logs for a TLS/connection error, not a signature error) |
 | `signed-image-test` also gets rejected by a *different* policy | Module 06's cluster-wide `require-resource-limits`/`disallow-latest-tag` policies apply here too — this namespace has no LimitRange to backfill missing resources the way `online-boutique` does | `kubectl describe pod signed-image-test -n supply-chain-demo` names the exact policy that blocked it; `setup.sh`'s pod already sets explicit resources for this reason |
-| `crane copy ... --insecure` fails | The registry port-forward isn't up, or died between steps | `pkill -f "port-forward.*supply-chain-demo"`, then re-run `kubectl port-forward -n supply-chain-demo svc/registry 5000:5000 &` manually |
+| `crane copy ... --insecure` fails | The registry port-forward isn't up, or died between steps | Run `kubectl port-forward --address 127.0.0.1 -n supply-chain-demo svc/registry 5000:5000 &` manually, then retry |
 | `cosign` CLI flags don't match this README | cosign v3 deprecated several verification-material/bundle-format flags in favor of new defaults (the `generate-key-pair`/`sign --key`/`verify --key` commands used here are unaffected — the changes are in Fulcio/Rekor keyless flows, which this module doesn't use) | `cosign sign --help` for the exact current flags on your installed version |
 | No `VulnerabilityReport`s appear at all | Trivy Operator hasn't finished its first scan pass yet | `kubectl logs -n trivy-system deployment/trivy-operator`; give it a few minutes after install |
 

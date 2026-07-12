@@ -85,11 +85,12 @@ git ls-remote "$GITOPS_REPO_URL" &>/dev/null \
 # --- Phase 2: install ArgoCD ---
 log_info "Generating and bcrypt-hashing a random ArgoCD admin password..."
 ARGOCD_PASSWORD="$(openssl rand -hex 12)"
-ARGOCD_BCRYPT_HASH=$(kubectl run argocd-htpasswd-$$ --image=httpd:alpine --restart=Never --rm -q -i --timeout=30s -- \
+ARGOCD_BCRYPT_HASH=$(kubectl run argocd-htpasswd-$$ --image=httpd:2.4.62-alpine --restart=Never --rm -q -i --timeout=30s \
+  --overrides="{\"spec\":{\"containers\":[{\"name\":\"argocd-htpasswd-$$\",\"image\":\"httpd:2.4.62-alpine\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
   htpasswd -nbBC 10 "" "${ARGOCD_PASSWORD}" </dev/null 2>/dev/null | tr -d ':\n' | sed 's/\$2y/\$2a/')
 
 if [[ -z "$ARGOCD_BCRYPT_HASH" ]]; then
-  echo -e "${RED}[ERROR]${NC} Failed to generate the bcrypt hash — check: kubectl run --image=httpd:alpine works in this cluster." >&2
+  echo -e "${RED}[ERROR]${NC} Failed to generate the bcrypt hash — check the ephemeral httpd pod can run in this cluster." >&2
   exit 1
 fi
 

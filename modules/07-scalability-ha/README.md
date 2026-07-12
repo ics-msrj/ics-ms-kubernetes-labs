@@ -83,7 +83,8 @@ kubectl get hpa frontend -n online-boutique -w
 In another terminal, generate load beyond what `loadgenerator`'s default 10 simulated users produce:
 
 ```bash
-kubectl run -n online-boutique load-burst --image=busybox:1.36 --restart=Never --rm -it -- \
+kubectl run -n online-boutique load-burst --image=busybox:1.36.1 --restart=Never --rm -it \
+  --overrides='{"spec":{"containers":[{"name":"load-burst","image":"busybox:1.36.1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' -- \
   /bin/sh -c "while true; do wget -q -O- http://frontend/ >/dev/null; done"
 ```
 

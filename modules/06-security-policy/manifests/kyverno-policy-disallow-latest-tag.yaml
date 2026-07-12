@@ -1,9 +1,8 @@
 # PSA (namespace-wide labels) only understands pod-level security fields —
 # it has no concept of "image tag." Policy engines like Kyverno fill that
 # gap: arbitrary rules over anything in the resource spec. Every image this
-# repo actually deploys is pinned (Online Boutique's v0.10.5 tags, redis:alpine
-# is the one deliberate exception upstream itself ships — pinning that is a
-# good follow-up exercise), so this policy should never reject real traffic.
+# repo actually deploys uses an explicit version tag. Digest pinning is a
+# stronger production control and is introduced in Module 16.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
