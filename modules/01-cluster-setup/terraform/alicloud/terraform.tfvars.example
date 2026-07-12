@@ -1,0 +1,30 @@
+# Copy to terraform.tfvars and fill in values discovered with:
+#   aliyun ecs DescribeZones --RegionId ap-southeast-5
+#   aliyun ecs DescribeImages --RegionId ap-southeast-5 --OSType linux
+#   aliyun ecs DescribeAvailableResource --RegionId ap-southeast-5 --DestinationResource InstanceType
+
+# Set this to the profile reported as current by `aliyun configure list`.
+alicloud_profile = "replace-with-your-aliyun-profile"
+region           = "ap-southeast-5"
+zone_id          = "ap-southeast-5a"
+cluster_name     = "k8s-lab"
+
+# Use an Ubuntu 24.04 x86_64 image ID available in the selected Jakarta zone.
+image_id = "replace-with-ubuntu-24-04-image-id"
+
+# Never use 0.0.0.0/0 for SSH.
+admin_cidrs         = ["203.0.113.10/32"]
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# Select types currently available in the selected zone. These values are
+# intentionally required instead of guessing a family whose Jakarta capacity
+# may change.
+control_plane_instance_type = "replace-with-4vcpu-8gib-instance-type"
+worker_instance_type        = "replace-with-8vcpu-16gib-instance-type"
+
+system_disk_category = "cloud_essd"
+system_disk_size_gib = 80
+data_disk_category   = "cloud_essd"
+data_disk_size_gib   = 100
+encrypt_disks        = true
+eip_bandwidth_mbps   = 10

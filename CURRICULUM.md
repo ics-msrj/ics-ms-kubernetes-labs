@@ -49,7 +49,7 @@ Every module directory follows the same shape and every README follows the same 
 
 ### Module 01 — Cluster Setup ✅
 **Objective**: bootstrap a real multi-node Kubernetes cluster with `kubeadm` (1 control-plane + N workers) and install a CNI.
-**Topics**: `kubeadm init`/`join`, containerd, Cilium (CNI-only mode), SSH-tunneled kubeconfig access. VMs are BYO by default; an optional Terraform example (AWS EC2) is included in `terraform/aws/`.
+**Topics**: `kubeadm init`/`join`, containerd, Cilium (CNI-only mode), SSH-tunneled kubeconfig access. VMs are BYO by default; optional Terraform examples provision raw AWS EC2 and Alibaba Cloud ECS (Jakarta) infrastructure in `terraform/aws/` and `terraform/alicloud/`.
 
 ### Module 02 — Core Workloads ✅
 **Objective**: deploy Online Boutique and understand every core workload type (Deployment, StatefulSet, DaemonSet, Job, CronJob) — including the ones Online Boutique doesn't use out of the box.

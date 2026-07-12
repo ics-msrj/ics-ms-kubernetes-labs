@@ -20,14 +20,16 @@ After this module you will:
 
 - [Module 00](../00-prerequisites/) verified (`verify.sh` all PASS).
 - **VMs**: at least 2 Ubuntu 22.04/24.04 VMs (1 control-plane + 1+ worker) that you can SSH into as a sudo-capable user. Recommended minimum for running Online Boutique plus later modules (observability, service mesh): control-plane 2 vCPU/4GB, each worker 4 vCPU/8GB+. You provide these — see "Getting VMs" below.
-- The VMs' security group / firewall must allow: SSH (22) from your workstation, TCP 6443 (API server) from your workstation, and unrestricted traffic between the VMs themselves (node-to-node and pod-to-pod).
+- The VMs' security group / firewall must allow: SSH (22) from your workstation, unrestricted traffic between the VMs themselves (node-to-node and pod-to-pod), and public TCP 80/443 when you reach Module 04's Gateway and ACME exercises. Keep TCP 6443 private: this lab uses an SSH tunnel for API access.
 
 ### Getting VMs
 
 Two options — pick one:
 
 1. **Bring your own VMs** (recommended if you already have somewhere to run them — a cloud account, a homelab, Proxmox, whatever). Just make sure they meet the prerequisites above, then skip straight to [Step 1](#step-1--fill-in-labenv).
-2. **Use the optional Terraform example** in [`terraform/aws/`](terraform/aws/) to provision raw EC2 instances:
+2. **Use an optional Terraform example** to provision raw cloud VMs:
+
+   **AWS EC2:**
    ```bash
    cd modules/01-cluster-setup/terraform/aws
    cp terraform.tfvars.example terraform.tfvars
@@ -36,7 +38,21 @@ Two options — pick one:
    terraform apply
    terraform output next_steps
    ```
-   This is a reference implementation for one provider, not a requirement — nothing else in this repo depends on Terraform or on AWS specifically.
+
+   **Alibaba Cloud ECS (Jakarta):**
+   ```bash
+   cd modules/01-cluster-setup/terraform/alicloud
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit alicloud_profile, image_id, admin_cidrs, and available ECS types.
+   terraform init
+   terraform apply
+   terraform output -raw next_steps
+   ```
+
+   This creates one control-plane and two workers, each with an EIP and a
+   dedicated Longhorn disk mounted at `/var/lib/longhorn`. It is a reference
+   implementation, not a requirement — nothing else in this repo depends on
+   Terraform, AWS, or Alibaba Cloud specifically.
 
 ## Architecture
 
@@ -145,7 +161,7 @@ Deeper failure injection (killing containerd, corrupting etcd, node network part
 | Nodes show `Ready` but all pods stay `Pending` | No CNI installed yet, or Cilium pods aren't Running | `kubectl get pods -n kube-system -l k8s-app=cilium` — if empty, re-run step 6 of `setup-control-plane.sh` manually |
 | `kubectl get nodes` times out from your workstation | SSH tunnel not running, or `CONTROL_PLANE_PRIVATE_IP` wrong | Re-run `export-kubeconfig.sh`; confirm the private IP is the one `kubeadm init` actually advertised (`kubectl -n kube-system get cm kubeadm-config -o yaml` from the control-plane itself) |
 | Worker never appears in `kubectl get nodes` | `join-command.sh` copied before it was generated, or a stale token (tokens expire after 24h) | On the control-plane: `kubeadm token create --print-join-command`, copy the fresh output to the worker, re-run `setup-worker.sh` |
-| `Instance profile` / IAM errors during `terraform apply` | Only relevant if using the optional AWS path — your AWS credentials lack EC2/IAM permissions | Use an IAM principal with EC2 full access, or provision VMs another way |
+| Cloud credential errors during `terraform apply` | The optional cloud Terraform path cannot authenticate or create its resources | For AWS, use an IAM principal with EC2 permissions. For Alibaba Cloud, confirm `aliyun configure list` shows the selected profile and that the RAM principal can manage ECS, VPC, EIP, and KMS resources in Jakarta. |
 
 ## Cleanup
 
@@ -153,7 +169,7 @@ Deeper failure injection (killing containerd, corrupting etcd, node network part
 bash modules/01-cluster-setup/scripts/destroy.sh
 ```
 
-Resets `kubeadm` on every node over SSH and removes the local kubeconfig. VMs themselves are **not** deleted — if you used the optional Terraform path, also run `terraform destroy` in `terraform/aws/`.
+Resets `kubeadm` on every node over SSH and removes the local kubeconfig. VMs themselves are **not** deleted — if you used an optional Terraform path, also run `terraform destroy` in its `terraform/aws/` or `terraform/alicloud/` directory.
 
 ## Key Takeaways
 

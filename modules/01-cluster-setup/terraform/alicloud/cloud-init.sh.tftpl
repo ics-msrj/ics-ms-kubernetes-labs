@@ -1,0 +1,38 @@
+#!/bin/bash
+set -euo pipefail
+
+hostnamectl set-hostname ${hostname}
+echo "127.0.1.1 ${hostname}" >> /etc/hosts
+
+%{ if initialize_disk ~}
+mount_path="${longhorn_mount}"
+marker="/var/lib/k8s-lab-longhorn-disk.initialized"
+
+if [[ ! -f "$marker" ]]; then
+  root_source="$(findmnt -n -o SOURCE /)"
+  root_parent="$(lsblk -no PKNAME "$root_source" | head -n1)"
+  root_disk="/dev/$root_parent"
+  data_disk=""
+
+  for _ in $(seq 1 30); do
+    while read -r device type; do
+      [[ "$type" == "disk" && "$device" != "$root_disk" ]] || continue
+      data_disk="$device"
+      break 2
+    done < <(lsblk -dnpo NAME,TYPE)
+    sleep 2
+  done
+
+  if [[ -z "$data_disk" ]]; then
+    echo "No attached Longhorn data disk was detected" >&2
+    exit 1
+  fi
+
+  mkdir -p "$mount_path"
+  mkfs.ext4 -F "$data_disk"
+  disk_uuid="$(blkid -s UUID -o value "$data_disk")"
+  grep -q "UUID=$disk_uuid" /etc/fstab || echo "UUID=$disk_uuid $mount_path ext4 defaults,nofail 0 2" >> /etc/fstab
+  mount "$mount_path"
+  touch "$marker"
+fi
+%{ endif ~}
