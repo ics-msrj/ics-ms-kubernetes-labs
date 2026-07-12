@@ -26,25 +26,24 @@ After this module you will:
 ## Architecture
 
 ```
-                     chaos-mesh namespace
-              ┌─────────────────────────────┐
-              │ chaos-controller-manager      │  reconciles PodChaos/
-              │ chaos-daemon (1 per node,      │  NetworkChaos/StressChaos/
-              │   privileged, talks to          │  Workflow CRDs against
-              │   containerd via                 │  online-boutique
-              │   /run/containerd/containerd.sock)│
-              │ chaos-dashboard (optional UI)  │
-              └─────────────────────────────┘
+                        chaos-mesh namespace
+        ┌───────────────────────────────────────┐
+        │ chaos-controller-manager              │  reconciles PodChaos/
+        │ chaos-daemon (1 per node, privileged, │  NetworkChaos/StressChaos/
+        │   talks to containerd via             │  Workflow CRDs against
+        │   /run/containerd/containerd.sock)    │  online-boutique
+        │ chaos-dashboard (optional UI)         │
+        └───────────────────────────────────────┘
                             │ injects faults into
                             ▼
               online-boutique namespace (real, same as Module 17)
-   ┌────────────────┐  ┌─────────────────┐  ┌──────────────────────┐
-   │ cartservice       │  │ currencyservice    │  │ productcatalogservice │
-   │ (pod-kill target)  │  │ (network chaos     │  │ (CPU stress target,    │
-   │ Module 07's PDB     │  │  target, Module 17's│  │  Module 07's VPA)       │
-   │ under test           │  │  retry policy under │  │                          │
-   │                        │  │  test)               │  │                          │
-   └────────────────┘  └─────────────────┘  └──────────────────────┘
+┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐
+│ cartservice            │  │ currencyservice        │  │ productcatalogservice  │
+│ (pod-kill target)      │  │ (network chaos         │  │ (CPU stress target,    │
+│ Module 07's PDB        │  │ target, Module 17's    │  │ Module 07's VPA)       │
+│ under test             │  │ retry policy under     │  │                        │
+│                        │  │ test)                  │  │                        │
+└────────────────────────┘  └────────────────────────┘  └────────────────────────┘
                             │ detected via
                             ▼
         Module 08 Prometheus/Grafana + Module 09 Loki + Module 17 Kiali

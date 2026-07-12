@@ -24,18 +24,18 @@ After this module you will:
 ## Architecture
 
 ```
-┌─────────────────────────┐              ┌─────────────────────────┐
-│      Primary cluster      │              │      Second cluster        │
-│   (Modules 01-13 live here) │            │   (exists only for this    │
-│                            │              │    module's import demo)   │
-│  ┌──────────────────────┐  │              │                             │
-│  │       Rancher           │  │   agent    │  cattle-cluster-agent       │
-│  │  (Gateway API, cilium)  │◀─┼─── phones ─┼─▶ (deployed by the import   │
-│  │  rancher.<APP_DOMAIN>   │  │    home    │    manifest, Step 3)        │
-│  └──────────────────────┘  │              │                             │
-└─────────────────────────┘              └─────────────────────────┘
-        kubeconfig: modules/01-.../kubeconfig.yaml (:6443 tunnel)
-                                                kubeconfig: modules/14-.../kubeconfig-cluster2.yaml (:6444 tunnel)
+Primary cluster (Modules 01-13)  Second cluster (this module's import demo only)
+┌─────────────────────────────┐    ┌─────────────────────────────┐
+│ Rancher                     │    │ cattle-cluster-agent        │
+│ (Gateway API, cilium)       │    │ deployed by the import      │
+│ rancher.<APP_DOMAIN>        │    │ manifest (Step 3), runs     │
+│ runs on the primary cluster │    │ on the second cluster       │
+└─────────────────────────────┘    └─────────────────────────────┘
+kubeconfig.yaml (:6443 tunnel)   kubeconfig-cluster2.yaml (:6444 tunnel)
+
+Rancher <-> cattle-cluster-agent: the agent 'phones home' to Rancher over the
+network Module 04's Gateway exposes it on -- Rancher never reaches INTO the
+second cluster on its own.
 ```
 
 ## Theory

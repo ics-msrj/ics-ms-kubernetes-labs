@@ -22,22 +22,22 @@ After this module you will:
 ## Architecture
 
 ```
- API request                    Pod creation request                Pod spec content
-      │                                  │                                  │
-      ▼                                  ▼                                  ▼
-┌───────────┐                  ┌──────────────────┐              ┌──────────────────┐
-│   RBAC     │                  │  Pod Security      │              │     Kyverno        │
-│            │                  │  Admission          │              │  ClusterPolicy      │
-│ "Can this  │                  │  (built into        │              │  (custom rules,     │
-│ identity   │                  │   the API server)    │              │   admission webhook) │
-│ do this    │                  │                     │              │                     │
-│ verb, on   │                  │ "Is this pod spec   │              │ "Does the image tag │
-│ this       │                  │  privileged/        │              │  say :latest? Are   │
-│ resource?" │                  │  hostNetwork/       │              │  resource limits    │
-│            │                  │  running as root?"  │              │  missing?"          │
-└───────────┘                  └──────────────────┘              └──────────────────┘
-   viewer, ci-deployer            online-boutique:                  disallow-latest-tag
-   ServiceAccounts                  restricted                      require-resource-limits
+API request                  Pod creation request                Pod spec content
+     │                              │                              │
+     ▼                              ▼                              ▼
+┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐
+│ RBAC                   │  │ Pod Security           │  │ Kyverno                │
+│                        │  │ Admission              │  │ ClusterPolicy          │
+│ "Can this identity     │  │ (built into the        │  │ (custom rules,         │
+│ do this verb, on       │  │ API server)            │  │ admission webhook)     │
+│ this resource?"        │  │                        │  │                        │
+│                        │  │ "Is this pod spec      │  │ "Does the image tag    │
+│                        │  │ privileged/            │  │ say :latest? Are       │
+│                        │  │ hostNetwork/           │  │ resource limits        │
+│                        │  │ running as root?"      │  │ missing?"              │
+└────────────────────────┘  └────────────────────────┘  └────────────────────────┘
+viewer, ci-deployer          online-boutique:              disallow-latest-tag
+  ServiceAccounts              restricted                    require-resource-limits
 ```
 
 ## Theory

@@ -27,23 +27,18 @@ Git (GitLab, primary)
   │
   │  gitops/apps/*.yaml  (committed, real repo URL — ArgoCD reads these directly)
   ▼
-┌─────────────────────────────┐
-│   root-app (App-of-Apps)      │  applied once, by hand, via setup.sh
-└──────────────┬─────────────┘
-               │ manages
-     ┌─────────┴─────────┐
-     ▼                   ▼
-┌───────────┐    ┌───────────┐
-│ online-     │    │ online-    │
-│ boutique-   │    │ boutique-  │
-│ packaged    │    │ dev        │
-│ (Helm       │    │ (Kustomize │
-│  source)    │    │  source)   │
-└─────┬─────┘    └─────┬─────┘
-      ▼                   ▼
- online-boutique-    online-boutique-dev
- packaged namespace   namespace
- (Module 10's chart)  (Module 10's overlay)
+┌─────────────────────────┐
+│ root-app (App-of-Apps)  │  applied once, by hand, via setup.sh
+└────────────┬────────────┘
+             │ manages, one Application per child
+    ┌───────┴────────┐
+    ▼                ▼
+┌───────────────────────────┐  ┌───────────────────────────┐
+│ online-boutique-packaged  │  │ online-boutique-dev       │
+│ (Helm source)             │  │ (Kustomize source)        │
+└───────────────────────────┘  └───────────────────────────┘
+  -> online-boutique-packaged namespace (Module 10's chart)
+  -> online-boutique-dev namespace (Module 10's overlay)
 ```
 
 ## Theory

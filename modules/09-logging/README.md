@@ -24,24 +24,24 @@ After this module you will:
 
 ```
 ┌───────────┐  ┌───────────┐  ┌───────────┐
-│  node A    │  │  node B    │  │  node C    │
-│  Alloy pod │  │  Alloy pod │  │  Alloy pod │   DaemonSet — one per node
+│ node A    │  │ node B    │  │ node C    │
+│ Alloy pod │  │ Alloy pod │  │ Alloy pod │   DaemonSet — one per node
 └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
       │  discovery.kubernetes: watches the K8s API for pods
       │  loki.source.kubernetes: reads each pod's logs via that API
       │  (no hostPath, no /var/log/pods mount)
       └───────────────┬───────────────┘
-                        ▼
-                 loki-gateway
-                        │
-                        ▼
-                 ┌───────────┐
-                 │   Loki     │  SingleBinary, filesystem storage
-                 │            │  on a Longhorn PVC (Module 05)
-                 └─────┬─────┘
-                        │ datasource (ConfigMap, sidecar-discovered)
-                        ▼
-                 Grafana (Module 08) — Explore view, LogQL
+                      ▼
+                loki-gateway
+                      │
+                      ▼
+                ┌──────────┐
+                │ Loki     │  SingleBinary, filesystem storage
+                │          │  on a Longhorn PVC (Module 05)
+                └────┬─────┘
+                     │ datasource (ConfigMap, sidecar-discovered)
+                     ▼
+             Grafana (Module 08) — Explore view, LogQL
 ```
 
 ## Theory
