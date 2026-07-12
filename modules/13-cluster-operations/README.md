@@ -28,8 +28,9 @@ After this module you will:
 | etcd snapshot (backup) | Yes | Read-only against etcd — cannot make things worse |
 | Velero backup/restore | Yes | Restores into a *new* namespace, never overwrites the original |
 | Node cordon/drain/uncordon | Yes | Fully reversible; respects PDBs by design |
+| kubeadm upgrade *readiness check* | Yes (`check-upgrade-readiness.sh`) | `kubeadm upgrade plan` is documented upstream as read-only — it fetches version info and reports, it never applies anything. Knowing you're behind carries none of the risk that actually upgrading does. |
 | **etcd restore** | **No — manual walkthrough only** | Requires stopping the API server and replacing etcd's data directory on your only control-plane node. Get a step wrong here and you have no working cluster and no easy undo. |
-| **kubeadm version upgrade** | **No — manual walkthrough only** | Touches every control-plane component and every kubelet. A script that gets this wrong mid-upgrade can leave the cluster in a half-upgraded state that's genuinely hard to reason about remotely. |
+| **kubeadm version upgrade** (the actual `apply`) | **No — manual walkthrough only** | Touches every control-plane component and every kubelet. A script that gets this wrong mid-upgrade can leave the cluster in a half-upgraded state that's genuinely hard to reason about remotely. |
 
 Both manual procedures below are real, complete, and safe to follow carefully — they're just not something this repo will run against your cluster without you watching every step.
 
@@ -86,7 +87,15 @@ kubectl get pvc -n online-boutique-restore-drill   # a genuinely new PVC, provis
 
 Clean it up once you've looked: `kubectl delete namespace online-boutique-restore-drill`.
 
-### Step 4 — Manual walkthrough: kubeadm version upgrade
+### Step 4 — Check upgrade readiness (read-only, safe to run any time)
+
+```bash
+bash modules/13-cluster-operations/scripts/check-upgrade-readiness.sh
+```
+
+This runs `kubeadm upgrade plan` on the control-plane over SSH and reports every node's current kubelet version — nothing is changed. Use this to actually decide whether Step 5 below is worth doing right now, instead of guessing.
+
+### Step 5 — Manual walkthrough: kubeadm version upgrade
 
 **Check current versions first** — this repo pinned `v1.34.9` in Module 01; treat the version numbers below as an example, not a fixed target. Check [kubernetes.io/releases](https://kubernetes.io/releases/) for what's actually current before you run this for real.
 
@@ -131,7 +140,7 @@ kubectl uncordon <worker-node>
 kubectl get nodes   # confirm the new version before moving to the next worker
 ```
 
-### Step 5 — Manual walkthrough: etcd restore drill
+### Step 6 — Manual walkthrough: etcd restore drill
 
 **Only attempt this if you're prepared to rebuild the cluster from Module 01 if something goes wrong.** This is the single most disruptive operation in this entire repository.
 
