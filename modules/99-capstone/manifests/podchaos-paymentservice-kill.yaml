@@ -1,0 +1,21 @@
+# Capstone fault vector 3 — pod-kill on paymentservice.
+#
+# Deliberately a DIFFERENT target than any of Module 18's own scenarios
+# (which used cartservice, currencyservice, productcatalogservice) — this
+# is a new Chaos Mesh object, not a rerun of Module 18's drill. Symptom is
+# narrow and specific: checkout fails at the payment step only, everything
+# before it in the funnel (browse, cart, shipping quote) keeps working.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: capstone-paymentservice-kill
+  namespace: online-boutique
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: paymentservice
+  duration: "30s"

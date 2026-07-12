@@ -6,7 +6,7 @@
 
 ## Status
 
-This repository is a ground-up rewrite. Modules are built and validated one at a time, in order. The table below tracks progress — unchecked modules are outlined but not yet written.
+This repository is a ground-up rewrite, built and validated one module at a time, in order. All 19 numbered modules plus the Capstone are complete — the table below reflects that. Each module still stands alone: read its README, run `setup.sh`, run `verify.sh`.
 
 ## Who Is This For?
 
@@ -49,7 +49,7 @@ See [`workloads/online-boutique/`](workloads/online-boutique/) for how it's vend
 | 16 | [Supply Chain Security](modules/16-supply-chain-security/) | Advanced | ✅ |
 | 17 | [Service Mesh](modules/17-service-mesh/) | Advanced | ✅ |
 | 18 | [Chaos Engineering & Incident Response](modules/18-chaos-engineering/) | Advanced | ✅ |
-| 99 | [Capstone](modules/99-capstone/) | Advanced | ⬜ |
+| 99 | [Capstone](modules/99-capstone/) | Advanced | ✅ |
 
 See [CURRICULUM.md](CURRICULUM.md) for full module details, learning objectives, and architecture notes.
 
