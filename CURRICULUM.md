@@ -103,10 +103,9 @@ Every module directory follows the same shape and every README follows the same 
 **Objective**: manage more than one native cluster from a single control point.
 **Topics**: a genuine second kubeadm cluster (1 control-plane + 1 worker, bootstrapped by reusing Module 01's scripts unmodified against new VMs); Rancher (chart 2.14.3, Gateway API mode with the `cilium` GatewayClass — Ingress-nginx retired March 2026, confirmed directly in the chart's own values comments); cluster import (deploying `cattle-cluster-agent`, a manual UI-driven step by design — Rancher's exact registration API wasn't something to automate without live verification); centralized RBAC as a layer above each cluster's own (Module 06).
 
-### Module 15 — Multi-Tenancy & Cost
+### Module 15 — Multi-Tenancy & Cost ✅
 **Objective**: run multiple teams/tenants on shared infrastructure with fair resource allocation and cost visibility.
-**Topics**: ResourceQuota, LimitRange, Hierarchical Namespaces, OpenCost.
-*Detailed lab content: not started.*
+**Topics**: `ResourceQuota` + `LimitRange` on `online-boutique`/`online-boutique-packaged` as stand-in tenants, enforcement proven live in `verify.sh`; OpenCost (chart 2.5.26) pointed at Module 08's existing Prometheus (no second Prometheus/Grafana, unlike Kubecost's bundled-by-default chart — documented as an optional alternative with its existing-Prometheus config). Hierarchical Namespaces dropped from the original plan — last released 2023, unmaintained.
 
 ### Module 16 — Supply Chain Security
 **Objective**: trust the images running in the cluster.

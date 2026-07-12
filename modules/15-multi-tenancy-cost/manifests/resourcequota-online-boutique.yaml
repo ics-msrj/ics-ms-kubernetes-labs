@@ -1,0 +1,21 @@
+# Sized with real headroom above what's actually running (11 services +
+# redis-cart + node-exporter + loadgenerator, scaled by Module 07's HPA and
+# 2 cartservice replicas) — this is an enforced ceiling meant to catch a
+# genuine runaway or misconfiguration, not something that fights the
+# workloads already deployed by Modules 02-13.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: online-boutique-quota
+  namespace: online-boutique
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 4Gi
+    limits.cpu: "8"
+    limits.memory: 8Gi
+    pods: "60"
+    services: "20"
+    persistentvolumeclaims: "5"
+    configmaps: "20"
+    secrets: "20"

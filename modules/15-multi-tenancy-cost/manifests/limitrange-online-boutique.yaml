@@ -1,0 +1,25 @@
+# defaultRequest/default apply automatically to any container that doesn't
+# specify its own resources — a safety net for whatever gets deployed into
+# this namespace next, not just what's here already (which already sets its
+# own resources explicitly, so this LimitRange has nothing to backfill for
+# Modules 02-13's own manifests).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: online-boutique-limits
+  namespace: online-boutique
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 64Mi
+      default:
+        cpu: 200m
+        memory: 128Mi
+      min:
+        cpu: 50m
+        memory: 32Mi
+      max:
+        cpu: "1"
+        memory: 1Gi

@@ -1,0 +1,26 @@
+# Points at Module 08's existing Prometheus instead of installing a second
+# one (OpenCost's chart, unlike Kubecost's, has no bundled Prometheus at
+# all by default — this section is what makes it query an existing one).
+# serviceMonitor.enabled lets Module 08's Prometheus scrape OpenCost's own
+# computed cost metrics back in, the same "release: monitoring" label
+# gotcha as Module 08's node-exporter PodMonitor and Module 09's Loki
+# datasource — Prometheus only watches ServiceMonitors carrying that label
+# by default.
+opencost:
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: monitoring-kube-prometheus-prometheus
+      namespaceName: monitoring
+      port: 9090
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: monitoring
+
+# Internal cost-visibility tool, same sensitivity tier as Prometheus/
+# Alertmanager (Module 08) — kubectl port-forward only, no public Gateway
+# exposure. See this module's README.
+opencostUI:
+  ingress:
+    enabled: false

@@ -1,0 +1,45 @@
+#!/bin/bash
+# =============================================================================
+# Module 15 — Multi-Tenancy & Cost — destroy.sh
+# =============================================================================
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_DIR="$(dirname "$SCRIPT_DIR")"
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
+log_ok()   { echo -e "${GREEN}[OK]${NC}    $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+
+echo ""
+echo "================================================================"
+echo "  Module 15 — Multi-Tenancy & Cost — Cleanup"
+echo "================================================================"
+echo ""
+log_warn "This removes the ResourceQuotas/LimitRanges and uninstalls OpenCost."
+echo ""
+read -rp "Continue? [y/N] " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+  log_info "Aborted."
+  exit 0
+fi
+
+kubectl delete -f "${MODULE_DIR}/manifests/resourcequota-online-boutique.yaml" --ignore-not-found=true
+kubectl delete -f "${MODULE_DIR}/manifests/limitrange-online-boutique.yaml" --ignore-not-found=true
+kubectl delete -f "${MODULE_DIR}/manifests/resourcequota-online-boutique-packaged.yaml" --ignore-not-found=true
+kubectl delete -f "${MODULE_DIR}/manifests/limitrange-online-boutique-packaged.yaml" --ignore-not-found=true
+log_ok "ResourceQuotas and LimitRanges removed"
+
+if kubectl get namespace opencost &>/dev/null; then
+  helm uninstall opencost -n opencost &>/dev/null || true
+  kubectl delete namespace opencost --ignore-not-found=true
+  log_ok "OpenCost removed"
+fi
+
+echo ""
+echo "================================================================"
+echo "  Module 15 cleanup complete."
+echo "================================================================"
+echo ""

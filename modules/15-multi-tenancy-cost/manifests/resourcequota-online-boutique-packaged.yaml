@@ -1,0 +1,15 @@
+# Lighter than online-boutique's quota — this "tenant" (Module 10's Helm
+# deployment) runs the same 11 services but with no HPA/extra replicas, so
+# less real headroom is needed above its actual usage.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: online-boutique-packaged-quota
+  namespace: online-boutique-packaged
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi
+    pods: "30"
