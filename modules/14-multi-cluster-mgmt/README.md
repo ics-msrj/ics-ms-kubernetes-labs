@@ -18,7 +18,7 @@ After this module you will:
 ## Prerequisites
 
 - [Module 04](../04-networking-gateway/) verified — Rancher exposes itself through the same `cilium` GatewayClass.
-- **A second, small set of VMs** — 1 control-plane + 1 worker is enough (this cluster never runs Online Boutique). Provision them exactly like Module 01: bring your own, or reuse the optional Terraform in `modules/01-cluster-setup/terraform/aws/` with `terraform workspace new cluster2` first, so its state stays independent of the primary cluster's.
+- **A second, small set of VMs** — 1 control-plane + 1 worker is enough (this cluster never runs Online Boutique — only Rancher's own agent, plus a minimal single-Deployment canary in Step 5). Provision them exactly like Module 01: bring your own, or reuse the optional Terraform in `modules/01-cluster-setup/terraform/aws/` with `terraform workspace new cluster2` first, so its state stays independent of the primary cluster's.
 - Fill in `SECOND_CONTROL_PLANE_PUBLIC_IP`, `SECOND_CONTROL_PLANE_PRIVATE_IP`, `SECOND_WORKER_PUBLIC_IPS` in `lab.env`.
 
 ## Architecture
@@ -45,6 +45,8 @@ second cluster on its own.
 **What "importing" a cluster into Rancher does and doesn't do.** The second cluster is fully independent before, during, and after this module — it has its own etcd, its own control plane, its own API server, reachable on its own via `kubeconfig-cluster2.yaml` whether or not Rancher is involved. Importing it deploys `cattle-cluster-agent`, which opens an outbound connection *from* the second cluster *to* Rancher — this is why import works even when Rancher can't reach the second cluster's API server directly (a common real-world case: clusters behind NAT, in different networks, in different clouds). Rancher becomes a place to *observe and act on* the second cluster; it does not become that cluster's control plane.
 
 **Why Gateway API here too.** Rancher's Helm chart historically assumed an Ingress controller; as of the version this module installs, it has a documented `networkExposure.type: gateway` path using the same `Gateway`/`HTTPRoute` resources every other exposed service in this repo (Grafana, ArgoCD) has used since Module 04 and Module 08. `tls.source: rancher` is the one exception to this repo's usual cert-manager/Let's Encrypt pattern — Rancher generates and manages its own internal CA, which is appropriate for what is, like Prometheus (Module 08), primarily an internal admin surface.
+
+**Why the promotion demo (Step 5) isn't an ArgoCD ApplicationSet.** An `ApplicationSet` with a cluster generator is the idiomatic ArgoCD-native answer to "deploy this to every registered cluster" — but ArgoCD's controller runs as pods *inside* the primary cluster, and it would need to reach the second cluster's real API server (port 6443) directly, over the network, to register it. That means exposing 6443 publicly — something Module 01's entire design deliberately avoids everywhere else in this repo (API access is always via SSH tunnel, never a public listener). The Rancher agent gets away with a cross-cluster connection because it's the *reverse* direction, over the *already-public* Gateway on port 443 (see this Theory section's second paragraph) — a genuinely different, already-safe network path, not the same thing with a different name. `promote-canary.sh` gets the same pedagogical result (one declarative source, converging identically on two independent clusters) by reusing the two SSH tunnels that already exist, from the workstation, instead of asking ArgoCD to reach across a boundary this repo otherwise never crosses.
 
 ## Lab
 
@@ -81,6 +83,14 @@ bash modules/14-multi-cluster-mgmt/scripts/verify.sh
 
 In the Rancher UI: **Users & Authentication** → create a Standard User → **Cluster Members** on the second cluster only → add that user with a scoped role (not Owner). Log in as them (or inspect their effective permissions) and confirm they can see the second cluster but not the primary one — this is Rancher's RBAC layered *above* each cluster's own, not a replacement for it.
 
+### Step 5 — Promote the same manifest to both clusters
+
+```bash
+bash modules/14-multi-cluster-mgmt/scripts/promote-canary.sh
+```
+
+Applies `manifests/canary-app.yaml` to both clusters via their two independent SSH tunnels, then proves convergence: the same container image on both, and each cluster's own copy correctly reporting which cluster it's running on. This is the actual "multi-cluster" payoff Rancher's single-pane-of-glass view can *show* you but doesn't *do* for you — Rancher lets you see two clusters at once, it doesn't promote anything between them.
+
 ## Failure Simulation
 
 | Scenario | How to break it | Detect | Recover |
@@ -97,6 +107,7 @@ In the Rancher UI: **Users & Authentication** → create a Standard User → **C
 | `:6444` tunnel keeps dying | Same SSH keepalive considerations as the primary cluster's `:6443` tunnel | Re-run the `ssh -f -N -L 6444:...` command `setup.sh` prints on failure |
 | Import command never reaches `Active` | `cattle-cluster-agent` can't reach Rancher outbound — check the second cluster's egress (firewall/security group) | `KUBECONFIG=modules/14-multi-cluster-mgmt/kubeconfig-cluster2.yaml kubectl logs -n cattle-system deployment/cattle-cluster-agent` |
 | Rancher UI shows a certificate warning | Expected — `tls.source: rancher` is a self-signed internal CA, the same tradeoff Module 08 made for Prometheus/Alertmanager | Accept it for a lab; a real deployment would set `tls.source: secret` referencing a cert-manager-issued certificate the same way `frontend`/`grafana`/`argocd` already do |
+| `promote-canary.sh` fails on the second cluster only | The `:6444` tunnel died between Step 1 and now | Same fix as the `:6444` tunnel row above — re-establish it, then re-run |
 
 ## Cleanup
 
@@ -109,6 +120,7 @@ bash modules/14-multi-cluster-mgmt/scripts/destroy.sh
 - Multi-cluster management tooling has nothing to manage without genuinely separate clusters — this module proved that by standing up a real second one, not simulating it.
 - "Import" means deploying an outbound-connecting agent, not taking ownership of a cluster's control plane — the imported cluster works identically with or without Rancher watching it.
 - Centralized RBAC in a tool like Rancher is an additional layer on top of each cluster's own RBAC (Module 06), not a replacement for it.
+- Not every cross-cluster problem has an ArgoCD-native answer without a real infrastructure tradeoff — recognizing when a "more idiomatic" pattern would quietly require breaking a security decision made elsewhere is as important as knowing the pattern exists.
 
 ## Next Module
 

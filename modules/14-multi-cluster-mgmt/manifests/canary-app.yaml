@@ -1,0 +1,81 @@
+# A deliberately minimal workload, NOT Online Boutique — this module's own
+# Prerequisites section says the second cluster never runs the full app,
+# and this doesn't change that. The only point here is proving the same
+# declarative manifest converges identically on two independently-managed
+# clusters — the canary content itself doesn't matter.
+#
+# __CLUSTER_LABEL__ is substituted by promote-canary.sh at apply time (same
+# sed-substitution pattern Module 04/11 already use for their own
+# placeholders) so each cluster's copy is visibly distinguishable.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canary-demo-content
+  namespace: default
+data:
+  index.html: |
+    <html><body><h1>canary-demo</h1><p>Running on: __CLUSTER_LABEL__</p></body></html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canary-demo
+  namespace: default
+  labels:
+    app: canary-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: canary-demo
+  template:
+    metadata:
+      labels:
+        app: canary-demo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            privileged: false
+            readOnlyRootFilesystem: true
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 32Mi}
+          volumeMounts:
+            - name: content
+              mountPath: /usr/share/nginx/html
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+      volumes:
+        - name: content
+          configMap:
+            name: canary-demo-content
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-demo
+  namespace: default
+spec:
+  selector:
+    app: canary-demo
+  ports:
+    - port: 80
+      targetPort: 8080

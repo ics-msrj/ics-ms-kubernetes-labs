@@ -29,6 +29,12 @@ if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
+kubectl delete -f "${MODULE_DIR}/manifests/canary-app.yaml" --ignore-not-found=true &>/dev/null || true
+if [[ -f "${MODULE_DIR}/kubeconfig-cluster2.yaml" ]]; then
+  KUBECONFIG="${MODULE_DIR}/kubeconfig-cluster2.yaml" kubectl delete -f "${MODULE_DIR}/manifests/canary-app.yaml" --ignore-not-found=true &>/dev/null || true
+fi
+log_ok "canary-demo removed from both clusters (if it was present)"
+
 if kubectl get namespace cattle-system &>/dev/null; then
   helm uninstall rancher -n cattle-system &>/dev/null || true
   kubectl delete namespace cattle-system --ignore-not-found=true
