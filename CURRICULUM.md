@@ -107,10 +107,9 @@ Every module directory follows the same shape and every README follows the same 
 **Objective**: run multiple teams/tenants on shared infrastructure with fair resource allocation and cost visibility.
 **Topics**: `ResourceQuota` + `LimitRange` on `online-boutique`/`online-boutique-packaged` as stand-in tenants, enforcement proven live in `verify.sh`; OpenCost (chart 2.5.26) pointed at Module 08's existing Prometheus (no second Prometheus/Grafana, unlike Kubecost's bundled-by-default chart — documented as an optional alternative with its existing-Prometheus config). Hierarchical Namespaces dropped from the original plan — last released 2023, unmaintained.
 
-### Module 16 — Supply Chain Security
+### Module 16 — Supply Chain Security ✅
 **Objective**: trust the images running in the cluster.
-**Topics**: Trivy (scanning), Cosign (signing), SBOM, image admission policy.
-*Detailed lab content: not started.*
+**Topics**: Trivy Operator (chart 0.34.0, continuous cluster-wide vulnerability scanning via `VulnerabilityReport` CRDs, real findings on Online Boutique's actual images); `trivy` CLI SBOM generation (one-off, workstation); a self-hosted registry (Longhorn-backed) + `cosign` v3.1.1 key-pair signing (`crane` for image copy — no Docker anywhere in this repo); Module 06's Kyverno extended with a `verifyImages` policy (`registryClient.allowInsecure=true` for the plain-HTTP registry) scoped to a new `supply-chain-demo` namespace only, since Online Boutique's real images aren't signed with a key this lab controls. `verify.sh` proves both directions live: the signed image admitted, a freshly-pushed unsigned image rejected.
 
 ### Module 17 — Service Mesh
 **Objective**: add mTLS, traffic shaping, and deep service-to-service observability. Online Boutique is the canonical Istio demo app — this module leans into that.

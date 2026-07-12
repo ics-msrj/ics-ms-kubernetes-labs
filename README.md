@@ -46,7 +46,7 @@ See [`workloads/online-boutique/`](workloads/online-boutique/) for how it's vend
 | 13 | [Cluster Operations](modules/13-cluster-operations/) | Advanced | ✅ |
 | 14 | [Multi-Cluster Management](modules/14-multi-cluster-mgmt/) | Advanced | ✅ |
 | 15 | [Multi-Tenancy & Cost](modules/15-multi-tenancy-cost/) | Advanced | ✅ |
-| 16 | [Supply Chain Security](modules/16-supply-chain-security/) | Advanced | ⬜ |
+| 16 | [Supply Chain Security](modules/16-supply-chain-security/) | Advanced | ✅ |
 | 17 | [Service Mesh](modules/17-service-mesh/) | Advanced | ⬜ |
 | 18 | [Chaos Engineering & Incident Response](modules/18-chaos-engineering/) | Advanced | ⬜ |
 | 99 | [Capstone](modules/99-capstone/) | Advanced | ⬜ |

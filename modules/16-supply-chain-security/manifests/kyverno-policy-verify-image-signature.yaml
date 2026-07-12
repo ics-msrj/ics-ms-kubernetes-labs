@@ -1,0 +1,42 @@
+# Extends Module 06's Kyverno install — no new admission controller for
+# this module, Kyverno already does image signature verification
+# (verifyImages) alongside the policy-as-code rules it's already enforcing.
+#
+# Scoped to the supply-chain-demo namespace ONLY. This is deliberate, not a
+# limitation: Online Boutique's real images (Google's, in online-boutique)
+# aren't signed with a key this lab controls — a policy requiring our
+# signature cluster-wide would immediately block every pod in this repo's
+# main namespace.
+#
+# publicKeys below is a placeholder — setup.sh uses `yq` to overwrite it
+# with the real public key content (freshly generated each run) rather than
+# a text substitution, since sed/awk on a multi-line PEM block inside YAML
+# is exactly the kind of fragile indentation bug not worth risking here.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-signed-images-supply-chain-demo
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: check-image-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - supply-chain-demo
+      verifyImages:
+        - imageReferences:
+            - "registry.supply-chain-demo.svc.cluster.local:5000/*"
+          mutateDigest: false
+          verifyDigest: false
+          required: true
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: "PLACEHOLDER"
