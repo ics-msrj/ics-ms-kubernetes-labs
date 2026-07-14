@@ -17,11 +17,11 @@
 
 | Parameter | Decision |
 |---|---|
-| Track | Single: native Kubernetes via `kubeadm` on self-provisioned VMs |
+| Track | Primary: native Kubernetes via `kubeadm` on self-provisioned VMs. Additive: [AKS platform track](platforms/aks/) reuses the same modules where possible, replaces only what AKS owns (control plane, CNI, CSI, node lifecycle). |
 | Workload | Online Boutique (upstream, GoogleCloudPlatform/microservices-demo) |
 | Language | English |
 | Delivery | Self-paced — README + scripts per module |
-| Module automation | `setup.sh` / `verify.sh` / `destroy.sh` per module (unified CLI wrapper: TBD, tracked separately) |
+| Module automation | `setup.sh` / `verify.sh` / `destroy.sh` per module, plus [`lab.sh`](lab.sh) as an optional unified CLI wrapper |
 
 ## Module Contract
 

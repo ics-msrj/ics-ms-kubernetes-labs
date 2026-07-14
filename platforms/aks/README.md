@@ -32,6 +32,17 @@ The core workload adapter deploys the actual vendored Online Boutique workload
 from Module 02, but replaces `local-path` with AKS `managed-csi`. It does not
 install the kubeadm-specific node-exporter DaemonSet.
 
+## Cleanup
+
+```bash
+bash platforms/aks/scripts/aks-track.sh destroy
+```
+
+Removes the `online-boutique` namespace only. It does not disable the
+managed add-ons `enable-managed-addons.sh` turned on, and it does not touch
+the AKS cluster or its node pools — those are Azure-billed resources this
+track doesn't own.
+
 ## Module Compatibility
 
 | Module | AKS status | AKS treatment |
