@@ -71,3 +71,6 @@ Thumbs.db
 *.log
 tmp/
 scratch/
+modules/18-chaos-engineering/config/aks-autoscale-sim.env
+modules/18-chaos-engineering/artifacts/*
+!modules/18-chaos-engineering/artifacts/.gitkeep

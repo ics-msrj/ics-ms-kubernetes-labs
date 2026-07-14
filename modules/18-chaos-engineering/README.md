@@ -137,6 +137,14 @@ Open `http://localhost:9091`, create an account, connect a "self-agent" (install
 
 This module's own scenarios, plus every other module's, are indexed in [`docs/failure-simulation-matrix.md`](../../docs/failure-simulation-matrix.md) — the single reference this repo has been pointing at since Module 06.
 
+## AKS Capacity GameDay
+
+For an AKS-specific cost-versus-resilience exercise, this module also includes
+a controlled traffic simulation. It starts from VPA-reviewed resource requests,
+then tests HPA and AKS Cluster Autoscaler with both gradual demand and a sudden
+spike. It is isolated in the `autoscale-sim` namespace and does not require
+Chaos Mesh. See [`docs/aks-autoscaling-simulation.md`](docs/aks-autoscaling-simulation.md).
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |

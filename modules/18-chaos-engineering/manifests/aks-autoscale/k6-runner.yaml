@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k6-runner
+  namespace: autoscale-sim
+  labels:
+    app.kubernetes.io/name: k6-runner
+    app.kubernetes.io/part-of: aks-autoscale-simulation
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-load-scripts
+  namespace: autoscale-sim
+  labels:
+    app.kubernetes.io/name: k6-runner
+    app.kubernetes.io/part-of: aks-autoscale-simulation
+data:
+  vpa-baseline.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    export const options = {
+      vus: 10,
+      duration: '20m',
+      thresholds: { http_req_failed: ['rate<0.01'], http_req_duration: ['p(95)<2000'] },
+    };
+    export default function () {
+      const response = http.get(`${__ENV.TARGET_URL}/work`);
+      check(response, { 'status is 200': (result) => result.status === 200 });
+      sleep(0.1);
+    }
+  gradual-ramp.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    export const options = {
+      stages: [
+        { duration: '5m', target: 5 },
+        { duration: '10m', target: 25 },
+        { duration: '10m', target: 50 },
+        { duration: '10m', target: 50 },
+        { duration: '15m', target: 5 },
+      ],
+      thresholds: { http_req_failed: ['rate<0.02'], http_req_duration: ['p(95)<2000'] },
+    };
+    export default function () {
+      const response = http.get(`${__ENV.TARGET_URL}/work`);
+      check(response, { 'status is 200': (result) => result.status === 200 });
+      sleep(0.05);
+    }
+  sudden-spike.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    export const options = {
+      stages: [
+        { duration: '5m', target: 5 },
+        { duration: '1m', target: 125 },
+        { duration: '10m', target: 125 },
+        { duration: '1m', target: 5 },
+        { duration: '14m', target: 5 },
+      ],
+      thresholds: { http_req_failed: ['rate<0.05'], http_req_duration: ['p(95)<5000'] },
+    };
+    export default function () {
+      const response = http.get(`${__ENV.TARGET_URL}/work`);
+      check(response, { 'status is 200': (result) => result.status === 200 });
+      sleep(0.02);
+    }
