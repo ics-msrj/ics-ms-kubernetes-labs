@@ -18,7 +18,9 @@ This repository is a ground-up rewrite, built and validated one module at a time
 
 ## Track
 
-**Single track: native Kubernetes via `kubeadm` on your own VMs** (cloud, on-prem, or bare metal — you provide SSH access to a handful of Ubuntu VMs). No managed Kubernetes service is required. This keeps every concept explicit: you build the control plane, the CNI, and every add-on yourself instead of relying on a cloud provider's defaults.
+**Primary track: native Kubernetes via `kubeadm` on your own VMs** (cloud, on-prem, or bare metal — you provide SSH access to a handful of Ubuntu VMs). No managed Kubernetes service is required. This keeps every concept explicit: you build the control plane, the CNI, and every add-on yourself instead of relying on a cloud provider's defaults.
+
+An additive [AKS platform track](platforms/aks/) is also available for running the application and platform modules on managed Kubernetes. It intentionally replaces kubeadm-, Cilium-, Longhorn-, and SSH-specific steps with AKS-managed equivalents rather than applying those VM-oriented scripts to the managed control plane.
 
 ## Workload — Online Boutique
 
