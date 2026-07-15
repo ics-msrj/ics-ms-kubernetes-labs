@@ -8,11 +8,25 @@ managed add-ons.
 It must not run `modules/01-cluster-setup` against AKS. Never install a second
 CNI, call `kubeadm`, modify the managed control plane, or SSH to AKS nodes.
 
+## Cluster
+
+No AKS cluster to point this at yet? [`terraform/`](terraform/) provisions
+one (resource group, system + autoscaling workload node pools, Azure CNI
+Overlay with the Cilium data plane, CSI snapshot controller enabled) —
+this is the AKS equivalent of Module 01's optional VM Terraform, except
+here the control plane is what's being provisioned, not VMs to `kubeadm`
+yourself. See [`terraform/README.md`](terraform/README.md), including its
+cost note before running `terraform apply`.
+
+Already have a suitable AKS cluster? Skip straight to Foundation below —
+`preflight.sh` will tell you exactly what's missing if it isn't ready.
+
 ## Foundation
 
 ```bash
 cp platforms/aks/config/aks.env.example platforms/aks/config/aks.env
-# Edit the resource group, AKS cluster, workload pool, and domain settings.
+# Edit the resource group, AKS cluster, workload pool, and domain settings
+# (terraform/'s `next_steps` output has these values if you used it).
 
 bash platforms/aks/scripts/aks-track.sh connect
 bash platforms/aks/scripts/aks-track.sh preflight
