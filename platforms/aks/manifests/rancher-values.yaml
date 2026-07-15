@@ -1,0 +1,17 @@
+# AKS equivalent of modules/14-multi-cluster-mgmt/manifests/rancher-values.yaml
+# — identical except gatewayClass.name. tls.source: rancher (Rancher
+# generates and manages its own internal CA) is chart-internal logic, not
+# tied to which GatewayClass terminates it, so it needs no change.
+networkExposure:
+  type: gateway
+
+gateway:
+  gatewayClass:
+    name: approuting-istio
+    ports:
+      http: 80
+      https: 443
+  tls:
+    source: rancher
+
+replicas: 1

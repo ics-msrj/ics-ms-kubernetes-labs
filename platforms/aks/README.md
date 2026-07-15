@@ -51,6 +51,22 @@ bash platforms/aks/scripts/aks-track.sh enable-scaling
 bash platforms/aks/scripts/aks-track.sh enable-backup
 ```
 
+## Optional: Multi-Cluster (Module 14 equivalent)
+
+Needs a second AKS cluster — same Terraform module, a different workspace:
+
+```bash
+cd platforms/aks/terraform && terraform workspace new cluster2
+cp terraform.tfvars.example terraform.tfvars   # different cluster_name/resource_group_name
+terraform apply
+cd -
+
+# Set RANCHER_DOMAIN, SECOND_AKS_RESOURCE_GROUP, SECOND_AKS_CLUSTER_NAME in aks.env
+bash platforms/aks/scripts/aks-track.sh enable-multicluster
+# Follow the printed instructions to import cluster2 into Rancher, then:
+bash platforms/aks/scripts/aks-track.sh promote-canary
+```
+
 `enable-managed-addons` enables AKS VPA, KEDA, and the application-routing
 Gateway API. The managed GatewayClass is `approuting-istio`; it is not Cilium
 and must not be combined with the existing Cilium host-network Gateway setup.
@@ -93,7 +109,7 @@ track doesn't own.
 | 08 Observability | Adapt | Reuse the chart/manifests, but enable its node exporter and omit SSH control-plane patches. |
 | 09-12 | Mostly supported | Run after their explicit dependencies are met. |
 | 13 Cluster Operations | Replace | `enable-backup.sh` — no etcd snapshot step (AKS backs up its own control plane); Velero/MinIO/backup/restore manifests reused unmodified from Module 13, only the storage class changed; node drain drill reused, scoped to the workload pool only. |
-| 14 Multi-Cluster | Replace | Import or create a second AKS cluster; do not bootstrap VMs. |
+| 14 Multi-Cluster | Replace | `enable-multicluster.sh` + `promote-canary.sh` — Rancher install and canary-app.yaml reused unmodified from Module 14, only rancher-values.yaml's GatewayClass differs. Second cluster via a Terraform workspace, not bootstrapped VMs. |
 | 15-16 | Supported | Run after Module 08 and the relevant application dependencies. |
 | 17 Service Mesh | Adapt | Select the AKS Istio add-on or self-managed Istio; do not combine it with application-routing Gateway API. |
 | 18 Chaos Engineering | Partial | Use the AKS capacity GameDay; do not run SSH node-failure experiments. |
