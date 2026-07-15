@@ -17,10 +17,11 @@ case "${1:-}" in
   promote-canary) exec "${SCRIPT_DIR}/promote-canary.sh" ;;
   enable-observability) exec "${SCRIPT_DIR}/enable-observability.sh" ;;
   enable-servicemesh) exec "${SCRIPT_DIR}/enable-servicemesh.sh" ;;
+  verify) exec "${SCRIPT_DIR}/verify.sh" ;;
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: aks-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-networking|enable-storage|enable-scaling|enable-backup|enable-observability|enable-servicemesh|enable-multicluster|promote-canary|destroy>
+Usage: aks-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-networking|enable-storage|enable-scaling|enable-backup|enable-observability|enable-servicemesh|enable-multicluster|promote-canary|verify|destroy>
 
 Run connect, preflight, enable-managed-addons, connect, preflight, deploy-core-workloads,
 enable-networking (Module 04), enable-storage (Module 05), enable-scaling (Module 07),

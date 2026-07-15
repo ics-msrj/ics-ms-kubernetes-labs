@@ -50,7 +50,15 @@ bash platforms/aks/scripts/aks-track.sh enable-storage         # Module 05
 bash platforms/aks/scripts/aks-track.sh enable-scaling         # Module 07
 bash platforms/aks/scripts/aks-track.sh enable-observability   # Module 08
 bash platforms/aks/scripts/aks-track.sh enable-backup          # Module 13
+
+bash platforms/aks/scripts/aks-track.sh verify
 ```
+
+`verify` is one aggregate check across the whole Foundation flow — every
+native module has its own `verify.sh`, but the individual `enable-*.sh`
+scripts here don't, so this is where they all get checked together.
+Service mesh and multi-cluster are checked only if they look like they
+were actually run (their absence is a WARN, not a FAIL).
 
 ## Run natively, unmodified
 
