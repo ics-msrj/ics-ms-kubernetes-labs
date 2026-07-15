@@ -161,7 +161,8 @@ up with their own native `destroy.sh`/`helm uninstall` if needed.
 | 15 Multi-Tenancy & Cost | Supported | Run its existing setup after Module 08. |
 | 16 Supply Chain Security | Supported | Run its existing setup after Modules 02 and 06. |
 | 17 Service Mesh | Adapt | `enable-servicemesh.sh` — self-managed Istio via Helm (not the AKS Istio add-on, which conflicts with application-routing's Gateway); everything else reused unmodified from Module 17 except Tempo's storage class. |
-| 18 Chaos Engineering | Partial | Use the AKS capacity GameDay (`docs/aks-autoscaling-simulation.md`); do not run the SSH node-failure drill (no SSH access to AKS nodes). |
+| 18 Chaos Engineering | Mostly supported | Chaos Mesh's core scenarios (PodChaos/NetworkChaos/StressChaos/Workflow) run unmodified — AKS uses containerd too, same runtime/socketPath. Only the SSH node-failure drill doesn't apply (no SSH to AKS nodes); the AKS capacity GameDay (`docs/aks-autoscaling-simulation.md`) is a separate, additional AKS-specific scenario. |
+| 99 Capstone | Supported | `inject-incident.sh`/`destroy.sh`/`check-readiness.sh` have zero infra-specific assumptions — verified by reading them, not assumed. Works once Modules 11, and this track's `enable-networking.sh` and Module 18's native setup.sh, are in place. `check-readiness.sh` itself still checks native modules' `verify.sh` paths, though — for an AKS run, check readiness manually via this track's own `verify.sh` plus each natively-run module's `verify.sh` instead. |
 
 ## VPA-First Autoscaling
 
