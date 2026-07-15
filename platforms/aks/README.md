@@ -48,6 +48,7 @@ bash platforms/aks/scripts/aks-track.sh deploy-core-workloads
 bash platforms/aks/scripts/aks-track.sh enable-networking
 bash platforms/aks/scripts/aks-track.sh enable-storage
 bash platforms/aks/scripts/aks-track.sh enable-scaling
+bash platforms/aks/scripts/aks-track.sh enable-backup
 ```
 
 `enable-managed-addons` enables AKS VPA, KEDA, and the application-routing
@@ -91,7 +92,7 @@ track doesn't own.
 | 07 Scalability & HA | Adapt | `enable-scaling.sh` — skips installing metrics-server/VPA/KEDA (AKS ships/manages them already), reuses Module 07's HPA/VPA/ScaledObject/PDB manifests unmodified. |
 | 08 Observability | Adapt | Reuse the chart/manifests, but enable its node exporter and omit SSH control-plane patches. |
 | 09-12 | Mostly supported | Run after their explicit dependencies are met. |
-| 13 Cluster Operations | Replace | No etcd snapshot or kubeadm upgrade access; use AKS backup/upgrade operations. |
+| 13 Cluster Operations | Replace | `enable-backup.sh` — no etcd snapshot step (AKS backs up its own control plane); Velero/MinIO/backup/restore manifests reused unmodified from Module 13, only the storage class changed; node drain drill reused, scoped to the workload pool only. |
 | 14 Multi-Cluster | Replace | Import or create a second AKS cluster; do not bootstrap VMs. |
 | 15-16 | Supported | Run after Module 08 and the relevant application dependencies. |
 | 17 Service Mesh | Adapt | Select the AKS Istio add-on or self-managed Istio; do not combine it with application-routing Gateway API. |
