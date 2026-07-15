@@ -37,6 +37,7 @@ bash platforms/aks/scripts/aks-track.sh connect
 bash platforms/aks/scripts/aks-track.sh preflight
 bash platforms/aks/scripts/aks-track.sh deploy-core-workloads
 bash platforms/aks/scripts/aks-track.sh enable-networking
+bash platforms/aks/scripts/aks-track.sh enable-storage
 ```
 
 `enable-managed-addons` enables AKS VPA, KEDA, and the application-routing
@@ -75,7 +76,7 @@ track doesn't own.
 | 02 Core Workloads | Supported | Use `deploy-core-workloads.sh`; Azure Disk CSI replaces local-path. |
 | 03 Config & Secrets | Supported | Run its existing setup after Module 02. |
 | 04 Networking & Gateway | Adapt | `enable-networking.sh` — reuses Module 04's ClusterIssuers/HTTPRoute/NetworkPolicy unmodified, Gateway swapped to `approuting-istio`. |
-| 05 Storage | Replace | Use Azure Disk CSI and Azure Disk snapshots, not Longhorn. |
+| 05 Storage | Replace | `enable-storage.sh` — redis-cart is already on managed-csi as of Module 02; this confirms CSI snapshot support and takes a real snapshot. |
 | 06 Security Policy | Supported | Run its existing setup after Module 02. |
 | 07 Scalability & HA | Adapt | AKS supplies Metrics Server and VPA; retain HPA/PDB manifests and use managed KEDA/VPA. |
 | 08 Observability | Adapt | Reuse the chart/manifests, but enable its node exporter and omit SSH control-plane patches. |

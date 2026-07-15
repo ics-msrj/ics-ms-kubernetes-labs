@@ -1,0 +1,19 @@
+# Applied and deleted by verify.sh only — proves the snapshot can actually
+# be restored into a new, independent volume, not just that the
+# VolumeSnapshot object exists. AKS equivalent of Module 05's own
+# redis-cart-restore-test.template.yaml (storageClassName swapped).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-cart-restore-test
+  namespace: online-boutique
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: managed-csi
+  dataSource:
+    name: redis-cart-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  resources:
+    requests:
+      storage: 1Gi

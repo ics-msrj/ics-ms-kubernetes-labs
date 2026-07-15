@@ -1,0 +1,11 @@
+# AKS equivalent of modules/05-storage/manifests/volumesnapshotclass.yaml.
+# driver.longhorn.io -> disk.csi.azure.com; incremental snapshots only
+# capture changes since the last one, cheaper than full snapshots.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: managed-csi
+driver: disk.csi.azure.com
+deletionPolicy: Delete
+parameters:
+  incremental: "true"
