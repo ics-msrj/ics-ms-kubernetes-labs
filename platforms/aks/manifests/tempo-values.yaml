@@ -1,0 +1,6 @@
+# AKS equivalent of modules/17-service-mesh/manifests/tempo-values.yaml —
+# identical except storageClassName.
+persistence:
+  enabled: true
+  storageClassName: managed-csi
+  size: 10Gi

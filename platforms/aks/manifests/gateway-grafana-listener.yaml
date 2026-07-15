@@ -1,0 +1,44 @@
+# AKS equivalent of modules/08-observability/manifests/gateway-grafana-listener.yaml
+# — identical except gatewayClassName. This is the FULL Gateway spec (not a
+# patch): kubectl apply's 3-way merge replaces the whole listeners list, so
+# Module 04's http/https listeners have to be repeated here too, same as
+# the native file does.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: online-boutique
+  annotations:
+    cert-manager.io/cluster-issuer: __TLS_ISSUER__
+spec:
+  gatewayClassName: approuting-istio
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: frontend-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-grafana
+      protocol: HTTPS
+      port: 443
+      hostname: __GRAFANA_DOMAIN__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: grafana-tls
+      allowedRoutes:
+        namespaces:
+          from: All

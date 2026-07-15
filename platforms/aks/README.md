@@ -45,11 +45,45 @@ bash platforms/aks/scripts/aks-track.sh enable-managed-addons
 bash platforms/aks/scripts/aks-track.sh connect
 bash platforms/aks/scripts/aks-track.sh preflight
 bash platforms/aks/scripts/aks-track.sh deploy-core-workloads
-bash platforms/aks/scripts/aks-track.sh enable-networking
-bash platforms/aks/scripts/aks-track.sh enable-storage
-bash platforms/aks/scripts/aks-track.sh enable-scaling
-bash platforms/aks/scripts/aks-track.sh enable-backup
+bash platforms/aks/scripts/aks-track.sh enable-networking      # Module 04
+bash platforms/aks/scripts/aks-track.sh enable-storage         # Module 05
+bash platforms/aks/scripts/aks-track.sh enable-scaling         # Module 07
+bash platforms/aks/scripts/aks-track.sh enable-observability   # Module 08
+bash platforms/aks/scripts/aks-track.sh enable-backup          # Module 13
 ```
+
+## Run natively, unmodified
+
+Modules 03, 06, 09, 10, 11, 12, 15, and 16 have zero infra-specific
+assumptions — verified by reading every one of their setup.sh scripts, not
+assumed from the table below. Run them exactly as the native track's own
+README says to, in order, once their explicit prerequisites above are met:
+
+```bash
+bash modules/03-config-secrets/scripts/setup.sh
+bash modules/06-security-policy/scripts/setup.sh
+bash modules/09-logging/scripts/setup.sh
+bash modules/10-package-management/scripts/setup.sh   # or use charts/kustomize directly
+bash modules/11-gitops-cicd/scripts/setup.sh           # needs a real Git remote, same as native
+bash modules/12-progressive-delivery/scripts/setup.sh  # needed before enable-servicemesh below
+bash modules/15-multi-tenancy-cost/scripts/setup.sh
+bash modules/16-supply-chain-security/scripts/setup.sh
+```
+
+## Optional: Service Mesh (Module 17 equivalent)
+
+Needs Module 12 (frontend must already be a Rollout) and enable-observability
+(Prometheus) above:
+
+```bash
+bash platforms/aks/scripts/aks-track.sh enable-servicemesh
+```
+
+Deliberately self-managed Istio via Helm, not AKS's own Istio service mesh
+add-on — that add-on cannot be combined with application-routing's
+Istio-based Gateway (confirmed against Microsoft's own docs), and
+self-managed Istio has no such conflict since App Routing owns north-south
+ingress while this owns east-west mesh traffic.
 
 ## Optional: Multi-Cluster (Module 14 equivalent)
 
@@ -89,10 +123,13 @@ same variables, same meaning, as `lab.env` on the native track.
 bash platforms/aks/scripts/aks-track.sh destroy
 ```
 
-Removes the `online-boutique` namespace only. It does not disable the
-managed add-ons `enable-managed-addons.sh` turned on, and it does not touch
-the AKS cluster or its node pools — those are Azure-billed resources this
-track doesn't own.
+Removes the `online-boutique` namespace, the `velero` namespace (MinIO/
+Velero), and Rancher (if installed). It does not disable the managed
+add-ons `enable-managed-addons.sh` turned on, and it does not touch the
+AKS cluster or its node pools — those are Azure-billed resources this
+track doesn't own. Modules run natively (03/06/09/10/11/12/15/16) and
+Istio/Kiali/Tempo (`enable-servicemesh.sh`) aren't covered — clean those
+up with their own native `destroy.sh`/`helm uninstall` if needed.
 
 ## Module Compatibility
 
@@ -106,13 +143,17 @@ track doesn't own.
 | 05 Storage | Replace | `enable-storage.sh` — redis-cart is already on managed-csi as of Module 02; this confirms CSI snapshot support and takes a real snapshot. |
 | 06 Security Policy | Supported | Run its existing setup after Module 02. |
 | 07 Scalability & HA | Adapt | `enable-scaling.sh` — skips installing metrics-server/VPA/KEDA (AKS ships/manages them already), reuses Module 07's HPA/VPA/ScaledObject/PDB manifests unmodified. |
-| 08 Observability | Adapt | Reuse the chart/manifests, but enable its node exporter and omit SSH control-plane patches. |
-| 09-12 | Mostly supported | Run after their explicit dependencies are met. |
+| 08 Observability | Adapt | `enable-observability.sh` — `nodeExporter.enabled=true` (opposite of native — no separate DaemonSet to collide with), skips the native PodMonitor, everything else (sealed password, cert-manager ServiceMonitor, PrometheusRule) reused unmodified. |
+| 09 Logging | Supported | Run its existing setup after Module 08. |
+| 10 Package Management | Supported | Run its existing setup, or use `charts/`/`kustomize/` directly — infra-agnostic either way. |
+| 11 GitOps & CI/CD | Supported | Run its existing setup — needs a real Git remote, same requirement as native. |
+| 12 Progressive Delivery | Supported | Run its existing setup — required before `enable-servicemesh.sh` (frontend must already be a Rollout). |
 | 13 Cluster Operations | Replace | `enable-backup.sh` — no etcd snapshot step (AKS backs up its own control plane); Velero/MinIO/backup/restore manifests reused unmodified from Module 13, only the storage class changed; node drain drill reused, scoped to the workload pool only. |
 | 14 Multi-Cluster | Replace | `enable-multicluster.sh` + `promote-canary.sh` — Rancher install and canary-app.yaml reused unmodified from Module 14, only rancher-values.yaml's GatewayClass differs. Second cluster via a Terraform workspace, not bootstrapped VMs. |
-| 15-16 | Supported | Run after Module 08 and the relevant application dependencies. |
-| 17 Service Mesh | Adapt | Select the AKS Istio add-on or self-managed Istio; do not combine it with application-routing Gateway API. |
-| 18 Chaos Engineering | Partial | Use the AKS capacity GameDay; do not run SSH node-failure experiments. |
+| 15 Multi-Tenancy & Cost | Supported | Run its existing setup after Module 08. |
+| 16 Supply Chain Security | Supported | Run its existing setup after Modules 02 and 06. |
+| 17 Service Mesh | Adapt | `enable-servicemesh.sh` — self-managed Istio via Helm (not the AKS Istio add-on, which conflicts with application-routing's Gateway); everything else reused unmodified from Module 17 except Tempo's storage class. |
+| 18 Chaos Engineering | Partial | Use the AKS capacity GameDay (`docs/aks-autoscaling-simulation.md`); do not run the SSH node-failure drill (no SSH access to AKS nodes). |
 
 ## VPA-First Autoscaling
 
