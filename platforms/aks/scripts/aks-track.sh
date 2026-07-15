@@ -10,13 +10,15 @@ case "${1:-}" in
   deploy-core-workloads) exec "${SCRIPT_DIR}/deploy-core-workloads.sh" ;;
   enable-networking) exec "${SCRIPT_DIR}/enable-networking.sh" ;;
   enable-storage) exec "${SCRIPT_DIR}/enable-storage.sh" ;;
+  enable-scaling) exec "${SCRIPT_DIR}/enable-scaling.sh" ;;
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: aks-track.sh <connect|preflight|enable-managed-addons|deploy-core-workloads|enable-networking|enable-storage|destroy>
+Usage: aks-track.sh <connect|preflight|enable-managed-addons|deploy-core-workloads|enable-networking|enable-storage|enable-scaling|destroy>
 
 Run connect, preflight, enable-managed-addons, connect, preflight, deploy-core-workloads,
-enable-networking (Module 04 equivalent), then enable-storage (Module 05 equivalent).
+enable-networking (Module 04 equivalent), enable-storage (Module 05 equivalent),
+then enable-scaling (Module 07 equivalent).
 destroy removes the online-boutique namespace; it does not touch the AKS cluster itself.
 EOF
     exit 1

@@ -38,6 +38,7 @@ bash platforms/aks/scripts/aks-track.sh preflight
 bash platforms/aks/scripts/aks-track.sh deploy-core-workloads
 bash platforms/aks/scripts/aks-track.sh enable-networking
 bash platforms/aks/scripts/aks-track.sh enable-storage
+bash platforms/aks/scripts/aks-track.sh enable-scaling
 ```
 
 `enable-managed-addons` enables AKS VPA, KEDA, and the application-routing
@@ -78,7 +79,7 @@ track doesn't own.
 | 04 Networking & Gateway | Adapt | `enable-networking.sh` — reuses Module 04's ClusterIssuers/HTTPRoute/NetworkPolicy unmodified, Gateway swapped to `approuting-istio`. |
 | 05 Storage | Replace | `enable-storage.sh` — redis-cart is already on managed-csi as of Module 02; this confirms CSI snapshot support and takes a real snapshot. |
 | 06 Security Policy | Supported | Run its existing setup after Module 02. |
-| 07 Scalability & HA | Adapt | AKS supplies Metrics Server and VPA; retain HPA/PDB manifests and use managed KEDA/VPA. |
+| 07 Scalability & HA | Adapt | `enable-scaling.sh` — skips installing metrics-server/VPA/KEDA (AKS ships/manages them already), reuses Module 07's HPA/VPA/ScaledObject/PDB manifests unmodified. |
 | 08 Observability | Adapt | Reuse the chart/manifests, but enable its node exporter and omit SSH control-plane patches. |
 | 09-12 | Mostly supported | Run after their explicit dependencies are met. |
 | 13 Cluster Operations | Replace | No etcd snapshot or kubeadm upgrade access; use AKS backup/upgrade operations. |
