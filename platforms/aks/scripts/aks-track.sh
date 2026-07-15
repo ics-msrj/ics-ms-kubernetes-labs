@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 case "${1:-}" in
+  check-prerequisites) exec "${SCRIPT_DIR}/check-prerequisites.sh" ;;
   connect) exec "${SCRIPT_DIR}/connect.sh" ;;
   preflight) exec "${SCRIPT_DIR}/preflight.sh" ;;
   enable-managed-addons) exec "${SCRIPT_DIR}/enable-managed-addons.sh" ;;
@@ -14,7 +15,7 @@ case "${1:-}" in
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: aks-track.sh <connect|preflight|enable-managed-addons|deploy-core-workloads|enable-networking|enable-storage|enable-scaling|destroy>
+Usage: aks-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-networking|enable-storage|enable-scaling|destroy>
 
 Run connect, preflight, enable-managed-addons, connect, preflight, deploy-core-workloads,
 enable-networking (Module 04 equivalent), enable-storage (Module 05 equivalent),

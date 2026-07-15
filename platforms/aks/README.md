@@ -8,6 +8,15 @@ managed add-ons.
 It must not run `modules/01-cluster-setup` against AKS. Never install a second
 CNI, call `kubeadm`, modify the managed control plane, or SSH to AKS nodes.
 
+## Prerequisites
+
+```bash
+bash platforms/aks/scripts/aks-track.sh check-prerequisites
+```
+
+Same idea as Module 00's own `verify.sh`, with `az` replacing `ssh` as the
+one required tool this track needs that the native track doesn't.
+
 ## Cluster
 
 No AKS cluster to point this at yet? [`terraform/`](terraform/) provisions
@@ -72,7 +81,7 @@ track doesn't own.
 
 | Module | AKS status | AKS treatment |
 |---|---|---|
-| 00 Prerequisites | Adapt | Add `az`; do not require SSH for AKS operation. |
+| 00 Prerequisites | Adapt | `check-prerequisites.sh` — same tool checks as Module 00, `az` replaces `ssh` as the one required addition. |
 | 01 Cluster Setup | Replace | AKS owns the control plane, CNI, kubelet, and node lifecycle. |
 | 02 Core Workloads | Supported | Use `deploy-core-workloads.sh`; Azure Disk CSI replaces local-path. |
 | 03 Config & Secrets | Supported | Run its existing setup after Module 02. |
