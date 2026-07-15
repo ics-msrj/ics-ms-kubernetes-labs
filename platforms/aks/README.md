@@ -36,6 +36,7 @@ bash platforms/aks/scripts/aks-track.sh enable-managed-addons
 bash platforms/aks/scripts/aks-track.sh connect
 bash platforms/aks/scripts/aks-track.sh preflight
 bash platforms/aks/scripts/aks-track.sh deploy-core-workloads
+bash platforms/aks/scripts/aks-track.sh enable-networking
 ```
 
 `enable-managed-addons` enables AKS VPA, KEDA, and the application-routing
@@ -45,6 +46,14 @@ and must not be combined with the existing Cilium host-network Gateway setup.
 The core workload adapter deploys the actual vendored Online Boutique workload
 from Module 02, but replaces `local-path` with AKS `managed-csi`. It does not
 install the kubeadm-specific node-exporter DaemonSet.
+
+`enable-networking` is the Module 04 equivalent: it reuses Module 04's own
+ClusterIssuers, frontend HTTPRoute, and redis-cart NetworkPolicy manifests
+unmodified (none of them have a CNI-specific assumption), installs
+cert-manager exactly as Module 04 does, and applies a Gateway that differs
+from Module 04's only in `gatewayClassName` (`approuting-istio`, not
+`cilium`). Set `APP_DOMAIN`/`ACME_EMAIL`/`TLS_ISSUER` in `aks.env` first —
+same variables, same meaning, as `lab.env` on the native track.
 
 ## Cleanup
 
@@ -65,7 +74,7 @@ track doesn't own.
 | 01 Cluster Setup | Replace | AKS owns the control plane, CNI, kubelet, and node lifecycle. |
 | 02 Core Workloads | Supported | Use `deploy-core-workloads.sh`; Azure Disk CSI replaces local-path. |
 | 03 Config & Secrets | Supported | Run its existing setup after Module 02. |
-| 04 Networking & Gateway | Adapt | Use application-routing Gateway API and `approuting-istio`, not Cilium. |
+| 04 Networking & Gateway | Adapt | `enable-networking.sh` — reuses Module 04's ClusterIssuers/HTTPRoute/NetworkPolicy unmodified, Gateway swapped to `approuting-istio`. |
 | 05 Storage | Replace | Use Azure Disk CSI and Azure Disk snapshots, not Longhorn. |
 | 06 Security Policy | Supported | Run its existing setup after Module 02. |
 | 07 Scalability & HA | Adapt | AKS supplies Metrics Server and VPA; retain HPA/PDB manifests and use managed KEDA/VPA. |

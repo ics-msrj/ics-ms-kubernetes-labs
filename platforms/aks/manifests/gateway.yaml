@@ -1,0 +1,37 @@
+# AKS equivalent of modules/04-networking-gateway/manifests/gateway.yaml —
+# identical in every respect except gatewayClassName. AKS's application-
+# routing add-on (enabled by enable-managed-addons.sh) provides the
+# `approuting-istio` GatewayClass; cert-manager still handles TLS the same
+# way it does on the native track (no Azure Key Vault dependency needed —
+# App Routing's own AKV-based TLS sync is a separate, unused path here).
+#
+# The http listener exists only so cert-manager's ACME HTTP-01 solver has
+# somewhere to attach its temporary challenge HTTPRoute — the real
+# HTTPRoute (reused unmodified from Module 04) attaches only to https.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: online-boutique
+  annotations:
+    cert-manager.io/cluster-issuer: __TLS_ISSUER__
+spec:
+  gatewayClassName: approuting-istio
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: frontend-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
