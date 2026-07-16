@@ -10,14 +10,24 @@ variable "resource_group_name" {
   default     = "rg-aks-platform-lab"
 }
 
+variable "create_resource_group" {
+  description = "true creates resource_group_name as a new resource group (default, for a from-scratch lab). false looks it up as a data source instead and creates nothing but the cluster inside it — use this for an existing (e.g. shared/production) resource group, so this configuration never touches its tags or lifecycle."
+  type        = bool
+  default     = true
+}
+
 variable "cluster_name" {
   description = "AKS cluster name — set as AKS_CLUSTER_NAME in platforms/aks/config/aks.env"
   type        = string
   default     = "aks-platform-lab"
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{1,20}$", var.cluster_name))
-    error_message = "cluster_name must be lowercase alphanumeric with hyphens, max 21 chars."
+    # Real Azure limit for the cluster name itself is 1-63 chars, but this
+    # value also becomes dns_prefix below (main.tf), whose own limit is
+    # tighter: 1-54 chars. Validating against 54 here, not 63, so this
+    # never fails later on the dns_prefix constraint instead.
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]{0,52}[a-zA-Z0-9]$", var.cluster_name))
+    error_message = "cluster_name must start/end alphanumeric, alphanumeric+hyphens only, max 54 chars (the tighter dns_prefix limit, since this value is reused as dns_prefix)."
   }
 }
 

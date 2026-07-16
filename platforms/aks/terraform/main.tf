@@ -16,16 +16,37 @@ provider "azurerm" {
   features {}
 }
 
+# create_resource_group = true creates a new resource group (default, for a
+# from-scratch lab). false looks it up as a read-only data source instead —
+# this configuration then creates nothing but the cluster inside it, and
+# never touches an existing resource group's tags or lifecycle. Using a
+# managed `resource` block against an already-existing resource group name
+# would make Terraform "adopt" it and overwrite its tags with var.tags on
+# every apply — a real risk for a shared or production resource group this
+# configuration doesn't own.
 resource "azurerm_resource_group" "lab" {
+  count = var.create_resource_group ? 1 : 0
+
   name     = var.resource_group_name
   location = var.location
   tags     = var.tags
 }
 
+data "azurerm_resource_group" "existing" {
+  count = var.create_resource_group ? 0 : 1
+
+  name = var.resource_group_name
+}
+
+locals {
+  resource_group_name     = var.create_resource_group ? azurerm_resource_group.lab[0].name : data.azurerm_resource_group.existing[0].name
+  resource_group_location = var.create_resource_group ? azurerm_resource_group.lab[0].location : data.azurerm_resource_group.existing[0].location
+}
+
 resource "azurerm_kubernetes_cluster" "lab" {
   name                = var.cluster_name
-  location            = azurerm_resource_group.lab.location
-  resource_group_name = azurerm_resource_group.lab.name
+  location            = local.resource_group_location
+  resource_group_name = local.resource_group_name
   dns_prefix          = var.cluster_name
   kubernetes_version  = var.kubernetes_version
   tags                = var.tags

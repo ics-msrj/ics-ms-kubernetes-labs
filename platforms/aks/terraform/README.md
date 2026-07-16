@@ -3,7 +3,11 @@
 This optional Terraform root module provisions the actual AKS cluster the
 rest of `platforms/aks/` operates against:
 
-- One resource group.
+- One resource group — created by default (`create_resource_group = true`).
+  Set it to `false` to target an existing resource group instead (e.g. a
+  shared or production one you don't want this configuration creating,
+  adopting, or re-tagging — it's then looked up as a read-only data source
+  and nothing about the resource group itself is managed here).
 - One AKS cluster with a fixed-size **system** node pool (AKS system
   components only — application and load-test Pods never schedule here).
 - One autoscaling **workload** node pool (`workloadpool`, 1-3 nodes by

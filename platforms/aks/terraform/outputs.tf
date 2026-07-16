@@ -1,6 +1,6 @@
 output "resource_group_name" {
   description = "Resource group name — set as AKS_RESOURCE_GROUP in platforms/aks/config/aks.env"
-  value       = azurerm_resource_group.lab.name
+  value       = local.resource_group_name
 }
 
 output "cluster_name" {
@@ -21,7 +21,7 @@ output "next_steps" {
   AKS cluster is ready. Fill these into platforms/aks/config/aks.env
   (copy from aks.env.example first if you haven't):
 
-  AKS_RESOURCE_GROUP=${azurerm_resource_group.lab.name}
+  AKS_RESOURCE_GROUP=${local.resource_group_name}
   AKS_CLUSTER_NAME=${azurerm_kubernetes_cluster.lab.name}
   AKS_WORKLOAD_NODEPOOL=${azurerm_kubernetes_cluster_node_pool.workload.name}
   AKS_WORKLOAD_LABEL_KEY=${var.workload_node_label_key}

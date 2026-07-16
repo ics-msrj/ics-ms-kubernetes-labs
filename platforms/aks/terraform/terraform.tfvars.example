@@ -1,12 +1,16 @@
 # Copy to terraform.tfvars and fill in your own values.
 # terraform.tfvars is git-ignored — never commit real subscription-tied values.
 
-location             = "southeastasia"
-resource_group_name  = "rg-aks-platform-lab"
-cluster_name         = "aks-platform-lab"
+location            = "southeastasia"
+resource_group_name = "rg-aks-platform-lab"
+# Uncomment if resource_group_name already exists (e.g. a shared/production
+# RG) — this then only creates the cluster inside it, never the RG itself,
+# and never re-tags it.
+# create_resource_group = false
+cluster_name = "aks-platform-lab"
 
-system_node_vm_size   = "Standard_D2s_v5"
-system_node_count     = 1
+system_node_vm_size = "Standard_D2s_v5"
+system_node_count   = 1
 
 workload_node_vm_size = "Standard_D4s_v5"
 workload_min_count    = 1
