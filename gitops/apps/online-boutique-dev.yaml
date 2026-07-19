@@ -21,8 +21,10 @@
 # StatefulSet the overlay produces. Target omits `name` on purpose —
 # it's a kind-wide match, not one resource.
 #
-# automated sync stays OFF until one manual sync has been verified not
-# to touch the password — re-enable only after confirming that.
+# automated/selfHeal verified safe: two manual syncs in a row on the
+# live cluster left the SealedSecret-managed password untouched both
+# times (previously, one sync was enough to overwrite it under every
+# prior approach). automated re-enabled below on that basis.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -69,5 +71,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: online-boutique-dev
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true

@@ -20,8 +20,10 @@
 # WORKLOAD_NODE_SELECTOR_KEY/_VALUE. A different target platform (native
 # kubeadm, AKS) needs different values here or none at all.
 #
-# automated sync stays OFF until one manual sync has been verified not
-# to touch the password — re-enable only after confirming that.
+# automated/selfHeal verified safe: two manual syncs in a row on the
+# live cluster left the SealedSecret-managed password untouched both
+# times (previously, one sync was enough to overwrite it under every
+# prior approach). automated re-enabled below on that basis.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -49,5 +51,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: online-boutique-packaged
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
