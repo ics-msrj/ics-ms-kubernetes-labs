@@ -172,6 +172,24 @@ yq eval '(select(document_index == 0) | .spec.storageClassName) = "'"${REGISTRY_
 kubectl apply -f "${REGISTRY_MANIFEST}"
 kubectl rollout status deployment/registry -n supply-chain-demo --timeout=120s
 
+# registry.supply-chain-demo.svc.cluster.local is only resolvable via
+# CLUSTER DNS (what pods use). kubelet pulls images using the NODE's own
+# DNS resolver, in a completely separate network namespace — confirmed
+# live: Kyverno's own admission check (a controller pod, pod-network DNS)
+# verified the signature fine, but kubelet then failed to even start the
+# admitted pod ("dial tcp: lookup ...svc.cluster.local ...: no such
+# host"). This isn't a GKE quirk specifically — it's true of kubelet's
+# image-pull path on any Kubernetes cluster where node DNS isn't also
+# wired to cluster DNS. Using the Service's ClusterIP instead needs no
+# DNS resolution at all, so it works from both paths identically. Both
+# the pod's image field AND the Kyverno policy's imageReferences pattern
+# below must use the SAME reference — Kyverno matches images against
+# imageReferences by literal string/glob, not by resolving what they
+# point at, so a mismatched hostname would make the rule silently not
+# apply instead of erroring.
+REGISTRY_CLUSTER_IP=$(kubectl get svc registry -n supply-chain-demo -o jsonpath='{.spec.clusterIP}')
+REGISTRY_HOST="${REGISTRY_CLUSTER_IP}:5000"
+
 REGISTRY_PF_PID=""
 cleanup_registry_port_forward() {
   if [[ -n "${REGISTRY_PF_PID}" ]]; then
@@ -225,6 +243,12 @@ log_info "Applying the image-signature-verification policy (supply-chain-demo on
 cp "${MODULE_DIR}/manifests/kyverno-policy-verify-image-signature.yaml" "${GENERATED_DIR}/policy.yaml"
 yq eval ".spec.rules[0].verifyImages[0].attestors[0].entries[0].keys.publicKeys = load_str(\"${GENERATED_DIR}/cosign.pub\")" \
   -i "${GENERATED_DIR}/policy.yaml"
+# imageReferences must match the SAME registry reference the test pods'
+# image field uses (REGISTRY_HOST, the ClusterIP — see the comment above
+# where it's computed) — Kyverno matches by literal pattern, not by
+# resolving what the string points at.
+yq eval ".spec.rules[0].verifyImages[0].imageReferences[0] = \"${REGISTRY_HOST}/*\"" \
+  -i "${GENERATED_DIR}/policy.yaml"
 kubectl apply -f "${GENERATED_DIR}/policy.yaml"
 
 log_info "Waiting for the policy to become ready..."
@@ -254,9 +278,9 @@ kubectl delete pod signed-image-test -n supply-chain-demo --ignore-not-found=tru
 # cluster-wide (no namespace restriction), so it applies here too — this
 # namespace has no LimitRange to backfill defaults the way online-boutique does.
 kubectl run signed-image-test -n supply-chain-demo \
-  --image=registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1 \
+  --image="${REGISTRY_HOST}/test-image:v1" \
   --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"signed-image-test","image":"registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1","command":["sleep","3600"],"resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}'
+  --overrides="{\"spec\":{\"containers\":[{\"name\":\"signed-image-test\",\"image\":\"${REGISTRY_HOST}/test-image:v1\",\"command\":[\"sleep\",\"3600\"],\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}"
 log_ok "Signed image admitted successfully"
 
 echo ""

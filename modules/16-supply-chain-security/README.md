@@ -47,7 +47,9 @@ After this module you will:
 
 **Why a verified signature alone still isn't enough — the TOCTOU gap `mutateDigest` closes.** Kyverno's `verifyImages` checks the signature against whatever digest the tag resolves to *at admission time*. Without `mutateDigest`, the pod spec still stores the mutable tag (`:v1`), not the digest that was actually verified — so kubelet does its own separate pull later, by tag, trusting that the tag still points at the same content. If the tag gets repointed in between (accidentally, or by an attacker with registry access), kubelet pulls whatever the tag now resolves to, never re-checking the signature. `mutateDigest: true` closes this by rewriting the pod spec to the exact digest that was just verified — Module 06's own `disallow-latest-tag` policy comment already promised this ("introduced in Module 16"); this is that promise kept, not a new feature bolted on. Check it yourself: `kubectl get pod signed-image-test -n supply-chain-demo -o jsonpath='{.spec.containers[0].image}'` shows an `@sha256:...` reference, not `:v1`, even though `:v1` is what was requested.
 
-**Why the verification policy only covers `supply-chain-demo`.** Every image in `online-boutique` comes from Google's public registry, signed (if at all) with a key this lab has no access to. A `verifyImages` policy matching those images against *our* public key would reject 100% of them — not a demonstration of security, just a broken application. The `imageReferences` pattern (`registry.supply-chain-demo.svc.cluster.local:5000/*`) scopes enforcement to exactly the one registry this lab controls end-to-end: the same discipline as Module 06's RBAC (`viewer`/`ci-deployer` scoped to what's actually needed) applied to image provenance instead of API verbs. Extending this cluster-wide for real would mean re-signing (or re-tagging with a re-signed copy from) every image actually in use — a real migration project, not a policy tweak.
+**Why the verification policy only covers `supply-chain-demo`.** Every image in `online-boutique` comes from Google's public registry, signed (if at all) with a key this lab has no access to. A `verifyImages` policy matching those images against *our* public key would reject 100% of them — not a demonstration of security, just a broken application. The `imageReferences` pattern scopes enforcement to exactly the one registry this lab controls end-to-end: the same discipline as Module 06's RBAC (`viewer`/`ci-deployer` scoped to what's actually needed) applied to image provenance instead of API verbs. Extending this cluster-wide for real would mean re-signing (or re-tagging with a re-signed copy from) every image actually in use — a real migration project, not a policy tweak.
+
+**Why every pod in this module references the registry by ClusterIP, not its Service DNS name.** kubelet pulls images using the *node's* own DNS resolver, in a network namespace separate from pods' — it can't resolve `*.svc.cluster.local` names, which only exist in cluster DNS (what pods use). Confirmed live: Kyverno's own admission check (a controller pod, using pod-network DNS) verified a signature fine, but kubelet then failed to even start the admitted pod (`no such host`). A raw ClusterIP needs no DNS resolution at all, so it works identically from both paths. `setup.sh` reads the registry Service's ClusterIP after creating it and injects it into both the test pods' `image` field and the policy's `imageReferences` pattern — they have to match exactly, since Kyverno matches `imageReferences` by literal string/glob, not by resolving what the reference points at.
 
 **Why Kyverno needed `registryClient.allowInsecure=true`.** Verifying a signature means Kyverno's own controller has to reach out to the registry and fetch it — by default it assumes registries speak HTTPS, which our plain-HTTP self-hosted one (no TLS configured, deliberately, for lab simplicity) doesn't. This is a real gotcha worth knowing exists: a `verifyImages` policy that looks correctly configured can still fail purely because the registry connection itself was refused, not because the signature was invalid — `kubectl describe` the rejected pod's events to tell the two apart. `setup.sh` records Kyverno's prior setting and `destroy.sh` restores it, so the lab does not leave that global relaxation behind.
 
@@ -89,10 +91,11 @@ cat modules/16-supply-chain-security/generated/frontend-sbom.json | less
 ```bash
 cosign generate-key-pair --output-key-prefix /tmp/wrong-key   # a second, unrelated keypair
 kubectl port-forward -n supply-chain-demo svc/registry 5000:5000 &
-COSIGN_PASSWORD="" cosign sign --key /tmp/wrong-key.key --allow-insecure-registry -y localhost:5000/test-image:v1
+COSIGN_PASSWORD="" cosign sign --key /tmp/wrong-key.key --allow-insecure-registry --tlog-upload=false -y localhost:5000/test-image:v1
+REGISTRY_HOST="$(kubectl get svc registry -n supply-chain-demo -o jsonpath='{.spec.clusterIP}'):5000"
 kubectl delete pod wrong-key-test -n supply-chain-demo --ignore-not-found
-kubectl run wrong-key-test -n supply-chain-demo --image=registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1 --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"wrong-key-test","image":"registry.supply-chain-demo.svc.cluster.local:5000/test-image:v1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}'
+kubectl run wrong-key-test -n supply-chain-demo --image="${REGISTRY_HOST}/test-image:v1" --restart=Never \
+  --overrides="{\"spec\":{\"containers\":[{\"name\":\"wrong-key-test\",\"image\":\"${REGISTRY_HOST}/test-image:v1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}"
 ```
 
 Signed, but with a key Kyverno's policy doesn't trust — expect the same rejection as the fully-unsigned case. A signature existing isn't enough; it has to verify against the *specific* public key the policy names.
@@ -103,7 +106,7 @@ Signed, but with a key Kyverno's policy doesn't trust — expect the same reject
 kubectl get pod signed-image-test -n supply-chain-demo -o jsonpath='{.spec.containers[0].image}'
 ```
 
-You requested `:v1`. What comes back is `registry.supply-chain-demo.svc.cluster.local:5000/test-image@sha256:...` — Kyverno's `mutateDigest` rewrote the pod spec to the exact digest it just verified, closing the gap where the tag could be repointed after admission and kubelet would pull the new content without ever re-checking the signature.
+You requested `:v1`. What comes back is `<registry ClusterIP>:5000/test-image@sha256:...` — Kyverno's `mutateDigest` rewrote the pod spec to the exact digest it just verified, closing the gap where the tag could be repointed after admission and kubelet would pull the new content without ever re-checking the signature.
 
 ## Failure Simulation
 

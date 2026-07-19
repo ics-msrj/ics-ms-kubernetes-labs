@@ -12,6 +12,15 @@
 # with the real public key content (freshly generated each run) rather than
 # a text substitution, since sed/awk on a multi-line PEM block inside YAML
 # is exactly the kind of fragile indentation bug not worth risking here.
+#
+# imageReferences is ALSO a placeholder, for a different reason: kubelet
+# pulls images using the node's own DNS resolver (a separate network
+# namespace from pods'), which can't resolve *.svc.cluster.local — only
+# the registry Service's ClusterIP works for both the admission check
+# (Kyverno, pod-network DNS) and the actual pull (kubelet). The
+# ClusterIP is only known after the Service exists, so setup.sh
+# overwrites this with the real one each run, same mechanism as
+# publicKeys above.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -31,7 +40,7 @@ spec:
                 - supply-chain-demo
       verifyImages:
         - imageReferences:
-            - "registry.supply-chain-demo.svc.cluster.local:5000/*"
+            - "PLACEHOLDER/*"
           # mutateDigest resolves the tag to the exact digest that was just
           # verified and rewrites the pod spec to reference THAT digest
           # instead of the mutable tag — closes the gap where the tag could

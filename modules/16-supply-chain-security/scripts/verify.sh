@@ -71,11 +71,20 @@ if command -v crane &>/dev/null; then
   crane copy busybox:1.36 localhost:5000/unsigned-test:v1 --insecure &>/dev/null
   kill "$PF_PID" 2>/dev/null || true
 
+  # Must match the ClusterIP-based reference setup.sh injected into the
+  # policy's imageReferences — kubelet can't resolve the Service's DNS
+  # name (separate network namespace from pods, see setup.sh's comment),
+  # and Kyverno matches imageReferences by literal pattern, so a
+  # DNS-name-based image here wouldn't even trigger the rule, silently
+  # passing this test for the wrong reason.
+  REGISTRY_CLUSTER_IP=$(kubectl get svc registry -n supply-chain-demo -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
+  REGISTRY_HOST="${REGISTRY_CLUSTER_IP}:5000"
+
   kubectl delete pod unsigned-image-test -n supply-chain-demo --ignore-not-found=true --wait=true &>/dev/null
   if kubectl run unsigned-image-test -n supply-chain-demo \
-      --image=registry.supply-chain-demo.svc.cluster.local:5000/unsigned-test:v1 \
+      --image="${REGISTRY_HOST}/unsigned-test:v1" \
       --restart=Never \
-      --overrides='{"spec":{"containers":[{"name":"unsigned-image-test","image":"registry.supply-chain-demo.svc.cluster.local:5000/unsigned-test:v1","resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+      --overrides="{\"spec\":{\"containers\":[{\"name\":\"unsigned-image-test\",\"image\":\"${REGISTRY_HOST}/unsigned-test:v1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" \
       &>/dev/null; then
     check_fail "An UNSIGNED image from our own registry was ALLOWED — verifyImages is not enforcing"
     kubectl delete pod unsigned-image-test -n supply-chain-demo --ignore-not-found=true --wait=false &>/dev/null
