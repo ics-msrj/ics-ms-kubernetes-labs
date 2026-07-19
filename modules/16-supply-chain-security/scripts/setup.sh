@@ -27,7 +27,22 @@ KYVERNO_ALLOW_INSECURE_FILE="${GENERATED_DIR}/kyverno-registry-client-allow-inse
 
 TRIVY_VERSION="${TRIVY_VERSION:-0.72.0}"
 CRANE_VERSION="${CRANE_VERSION:-0.21.7}"
-COSIGN_VERSION="${COSIGN_VERSION:-3.1.1}"
+# Pinned to the 2.x line deliberately, not "whatever's latest" — cosign
+# 3.x's default `sign` output changed to the newer sigstore bundle
+# format (an OCI image index wrapping an
+# application/vnd.dev.sigstore.bundle.v0.3+json artifact, tagged
+# sha256-<digest> with no suffix). Found live: Kyverno v1.18.2's
+# verifyImages couldn't find a signature in that format at all
+# ("no signatures found"), even though the image genuinely was signed —
+# confirmed by checking the registry's own tag list and manifest
+# directly. cosign 2.x still writes the older sha256-<digest>.sig tag
+# scheme (a plain detached signature manifest) that this Kyverno
+# version's verifier actually understands. No CLI flag on cosign 3.x
+# was found to opt back into that format (--use-signing-config and
+# --registry-referrers-mode both looked plausible, neither changed the
+# artifact type) — this is Kyverno needing a newer bundle-aware verifier,
+# not something fixable by more cosign flags.
+COSIGN_VERSION="${COSIGN_VERSION:-2.6.4}"
 TRIVY_OPERATOR_CHART_VERSION="${TRIVY_OPERATOR_CHART_VERSION:-0.34.0}"
 REGISTRY_STORAGE_CLASS="${REGISTRY_STORAGE_CLASS:-longhorn}"
 
@@ -165,7 +180,14 @@ rm -f "${GENERATED_DIR}/cosign.key" "${GENERATED_DIR}/cosign.pub"
 log_ok "Keypair generated: ${GENERATED_DIR}/cosign.key (private, git-ignored), ${GENERATED_DIR}/cosign.pub (public)"
 
 log_info "Signing the test image..."
-COSIGN_PASSWORD="" cosign sign --key "${GENERATED_DIR}/cosign.key" --allow-insecure-registry -y localhost:5000/test-image:v1
+# --tlog-upload=false is required, not optional — without it cosign 2.x
+# submits a real entry to the public Sigstore transparency log (Rekor)
+# for this throwaway test image, a permanent public record this
+# self-contained lab has no business creating. Pure --key signing
+# doesn't need the transparency log at all: verification here happens
+# entirely offline, against the public key baked into the Kyverno
+# policy below, never against Rekor.
+COSIGN_PASSWORD="" cosign sign --key "${GENERATED_DIR}/cosign.key" --allow-insecure-registry --tlog-upload=false -y localhost:5000/test-image:v1
 log_ok "Image signed"
 
 cleanup_registry_port_forward
