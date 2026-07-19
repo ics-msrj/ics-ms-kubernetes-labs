@@ -29,6 +29,7 @@ TRIVY_VERSION="${TRIVY_VERSION:-0.72.0}"
 CRANE_VERSION="${CRANE_VERSION:-0.21.7}"
 COSIGN_VERSION="${COSIGN_VERSION:-3.1.1}"
 TRIVY_OPERATOR_CHART_VERSION="${TRIVY_OPERATOR_CHART_VERSION:-0.34.0}"
+REGISTRY_STORAGE_CLASS="${REGISTRY_STORAGE_CLASS:-longhorn}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -43,8 +44,8 @@ if ! kubectl get clusterpolicy require-resource-limits &>/dev/null; then
   echo -e "${RED}[ERROR]${NC} Kyverno not found. Complete Module 06 first." >&2
   exit 1
 fi
-if ! kubectl get storageclass longhorn &>/dev/null; then
-  echo -e "${RED}[ERROR]${NC} StorageClass longhorn not found. Complete Module 05 first." >&2
+if ! kubectl get storageclass "${REGISTRY_STORAGE_CLASS}" &>/dev/null; then
+  echo -e "${RED}[ERROR]${NC} StorageClass ${REGISTRY_STORAGE_CLASS} not found. Complete Module 05 first, or set REGISTRY_STORAGE_CLASS to an existing one." >&2
   exit 1
 fi
 if ! command -v yq &>/dev/null; then
@@ -115,9 +116,19 @@ trivy image --format cyclonedx --output "${GENERATED_DIR}/frontend-sbom.json" \
 [ -s "${GENERATED_DIR}/frontend-sbom.json" ] && log_ok "SBOM saved: ${GENERATED_DIR}/frontend-sbom.json"
 
 # --- Step 3: self-hosted registry + test image ---
-log_info "Deploying the self-hosted registry..."
+log_info "Deploying the self-hosted registry (storageClassName: ${REGISTRY_STORAGE_CLASS})..."
 kubectl create namespace supply-chain-demo --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -f "${MODULE_DIR}/manifests/registry.yaml"
+# Scratch-copy substitution, not an edit to the committed manifest — same
+# non-destructive pattern Module 10's setup.sh uses for its own
+# storage-class override: registry.yaml's committed default (longhorn)
+# stays correct for native learners, only the applied copy changes.
+# document_index == 0 targets the PVC specifically — a plain top-level
+# yq eval would also stamp .spec.storageClassName onto the Deployment
+# and Service documents below it, which isn't a valid field there.
+REGISTRY_MANIFEST="${GENERATED_DIR}/registry.yaml"
+yq eval '(select(document_index == 0) | .spec.storageClassName) = "'"${REGISTRY_STORAGE_CLASS}"'"' \
+  "${MODULE_DIR}/manifests/registry.yaml" > "${REGISTRY_MANIFEST}"
+kubectl apply -f "${REGISTRY_MANIFEST}"
 kubectl rollout status deployment/registry -n supply-chain-demo --timeout=120s
 
 REGISTRY_PF_PID=""

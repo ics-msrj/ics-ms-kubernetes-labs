@@ -34,6 +34,8 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: registry
           image: registry:3.1.1
