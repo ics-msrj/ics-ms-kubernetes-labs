@@ -84,6 +84,9 @@ MINIO_ROOT_USER="velero-$(openssl rand -hex 4)"
 MINIO_ROOT_PASSWORD="$(openssl rand -hex 16)"
 
 log_info "Installing MinIO v${MINIO_CHART_VERSION} (standalone, Longhorn-backed)..."
+# resources.requests.memory=256Mi overrides the chart's own default of
+# 16Gi — appropriate for a real production MinIO, but wildly oversized
+# for a lab backup target and can fail to schedule on smaller lab VMs.
 helm repo add minio https://charts.min.io/ &>/dev/null || true
 helm repo update minio &>/dev/null
 helm upgrade --install minio minio/minio \
@@ -97,6 +100,7 @@ helm upgrade --install minio minio/minio \
   --set 'buckets[0].name=velero-backups' \
   --set 'buckets[0].policy=none' \
   --set 'buckets[0].purge=false' \
+  --set resources.requests.memory=256Mi \
   --wait --timeout 5m
 log_ok "MinIO ready"
 

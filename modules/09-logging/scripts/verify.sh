@@ -11,10 +11,22 @@ check_pass() { echo -e "  ${GREEN}PASS${NC}  $1"; PASS=$((PASS+1)); }
 check_fail() { echo -e "  ${RED}FAIL${NC}  $1"; FAIL=$((FAIL+1)); }
 check_warn() { echo -e "  ${YELLOW}WARN${NC}  $1"; WARN=$((WARN+1)); }
 
+# Args go inside --overrides (as the container's "args"), not after a
+# trailing "--" — kubectl silently drops a trailing exec command when
+# --overrides already defines containers[0], leaving curl to run with no
+# arguments at all (prints its own usage text, not a request failure).
 loki_get() {
-  kubectl run loki-verify-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
-    --overrides="{\"spec\":{\"containers\":[{\"name\":\"loki-verify-$$\",\"image\":\"curlimages/curl:8.10.1\",\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" -- \
-    curl -s --max-time 10 "http://loki-gateway.monitoring.svc.cluster.local$1" \
+  kubectl run "loki-verify-$$" --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+    --overrides="{\"spec\":{\"containers\":[{\"name\":\"loki-verify-$$\",\"image\":\"curlimages/curl:8.10.1\",\"args\":[\"-s\",\"--max-time\",\"10\",\"http://loki-gateway.monitoring.svc.cluster.local$1\"],\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" \
+    </dev/null 2>/dev/null
+}
+
+# The gateway's nginx only proxies specific whitelisted paths (see
+# loki-gateway's ConfigMap) — /ready isn't one of them and 404s through the
+# gateway. It's meant to be probed against the loki Service directly.
+loki_get_direct() {
+  kubectl run "loki-verify-$$" --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
+    --overrides="{\"spec\":{\"containers\":[{\"name\":\"loki-verify-$$\",\"image\":\"curlimages/curl:8.10.1\",\"args\":[\"-s\",\"--max-time\",\"10\",\"http://loki.monitoring.svc.cluster.local:3100$1\"],\"resources\":{\"requests\":{\"cpu\":\"10m\",\"memory\":\"16Mi\"},\"limits\":{\"cpu\":\"50m\",\"memory\":\"32Mi\"}}}]}}" \
     </dev/null 2>/dev/null
 }
 
@@ -28,7 +40,7 @@ echo -e "${BLUE}--- Loki ---${NC}"
 LOKI_READY=$(kubectl get statefulset loki -n monitoring -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
 [[ -n "$LOKI_READY" && "$LOKI_READY" != "0" ]] && check_pass "Loki StatefulSet is ready" || check_fail "Loki StatefulSet is not ready"
 
-READY_RESP=$(loki_get "/ready")
+READY_RESP=$(loki_get_direct "/ready")
 if [[ "$READY_RESP" == *"ready"* ]]; then
   check_pass "Loki /ready reports ready"
 else
@@ -66,7 +78,9 @@ fi
 
 echo ""
 echo -e "${BLUE}--- Grafana integration ---${NC}"
-if kubectl get configmap grafana-loki-datasource -n monitoring -l grafana_datasource=1 &>/dev/null; then
+# kubectl rejects a specific resource name combined with -l — list by
+# selector alone and check the name is in the results.
+if kubectl get configmap -n monitoring -l grafana_datasource=1 -o name 2>/dev/null | grep -q '^configmap/grafana-loki-datasource$'; then
   check_pass "Grafana Loki datasource ConfigMap exists and is labeled for sidecar discovery"
 else
   check_fail "grafana-loki-datasource ConfigMap missing or not labeled grafana_datasource=1"

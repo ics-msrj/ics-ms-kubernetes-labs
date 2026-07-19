@@ -1,6 +1,12 @@
 # Static Helm values for Velero. Credentials (MinIO root user/password,
 # generated fresh by setup.sh) are passed separately via --set-file, never
 # committed here.
+# velero-plugin-for-csi is deliberately NOT listed here — CSI backup/
+# restore support (BackupItemActionV2 velero.io/csi-pvc-backupper etc.) is
+# built into Velero core as of this chart's appVersion (1.18.1). Installing
+# the old standalone plugin on top of it registers the same plugin name
+# twice and crashes the pod outright: "unable to register plugin... because
+# another plugin is already registered for this kind and name".
 initContainers:
   - name: velero-plugin-for-aws
     image: velero/velero-plugin-for-aws:v1.14.2
@@ -8,12 +14,14 @@ initContainers:
     volumeMounts:
       - mountPath: /target
         name: plugins
-  - name: velero-plugin-for-csi
-    image: velero/velero-plugin-for-csi:v0.7.1
-    imagePullPolicy: IfNotPresent
-    volumeMounts:
-      - mountPath: /target
-        name: plugins
+
+# snapshotsEnabled: false — the chart's own default (true) unconditionally
+# renders a VolumeSnapshotLocation with an empty provider unless
+# configuration.volumeSnapshotLocation is also set, which fails API
+# validation outright ("spec.provider: Required value"). Not needed here
+# anyway: EnableCSI below uses the VolumeSnapshot CRDs directly, not the
+# legacy per-cloud snapshot-location mechanism this object belongs to.
+snapshotsEnabled: false
 
 configuration:
   # EnableCSI: use the VolumeSnapshot CRDs Module 05 already installed

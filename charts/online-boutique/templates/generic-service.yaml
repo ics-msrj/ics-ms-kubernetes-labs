@@ -27,6 +27,10 @@ spec:
     spec:
       serviceAccountName: {{ $svc.name }}
       terminationGracePeriodSeconds: 5
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml $.Values.securityContext.pod | nindent 8 }}
       containers:

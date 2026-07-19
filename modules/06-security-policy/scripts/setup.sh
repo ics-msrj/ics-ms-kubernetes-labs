@@ -47,6 +47,29 @@ kubectl label namespace online-boutique \
   --overwrite
 log_ok "PSA labels applied — only affects pods created from now on, existing pods are untouched"
 
+# restricted PSA has four requirements, not three: no privileged containers,
+# runAsNonRoot, capabilities.drop:[ALL] + allowPrivilegeEscalation:false —
+# and seccompProfile set. The vendored upstream manifest
+# (workloads/online-boutique/upstream/kubernetes-manifests.yaml) and
+# Module 02's own redis-cart-statefulset.yaml set the first three but not
+# the fourth. That's invisible right after this label is applied (PSA
+# doesn't touch already-Running pods), and only surfaces the next time
+# something tries to create a *new* pod from one of these templates — a
+# rollout restart, a scale-up (Module 07's own scale-to-2-replicas step
+# included), or a node reschedule. Found by hitting exactly that
+# FailedCreate on a live cluster, not by reading the PodSecurity spec.
+# Patched here instead of hand-editing the vendored manifest, and kept
+# idempotent/harmless to re-run even after Module 03 has already patched
+# cartservice/redis-cart itself.
+log_info "Patching seccompProfile into every workload's pod template (restricted PSA requires it; upstream doesn't set it)..."
+for kind in deployment statefulset; do
+  for name in $(kubectl get "$kind" -n online-boutique -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+    kubectl patch "$kind" "$name" -n online-boutique --type merge \
+      -p '{"spec":{"template":{"spec":{"securityContext":{"seccompProfile":{"type":"RuntimeDefault"}}}}}}' >/dev/null
+  done
+done
+log_ok "seccompProfile patched onto every Deployment/StatefulSet"
+
 # --- Step 2: RBAC ---
 log_info "Applying RBAC (viewer, ci-deployer)..."
 kubectl apply -f "${MODULE_DIR}/manifests/rbac-viewer.yaml"
@@ -78,11 +101,15 @@ kubectl apply -f "${MODULE_DIR}/manifests/kyverno-policy-require-resource-limits
 log_info "Waiting for policies to become ready..."
 for policy in disallow-latest-tag require-resource-limits; do
   for i in $(seq 1 20); do
-    READY=$(kubectl get clusterpolicy "$policy" -o jsonpath='{.status.ready}' 2>/dev/null)
-    [[ "$READY" == "true" ]] && break
+    # Kyverno 3.x reports readiness via status.conditions[type=Ready], not
+    # the older status.ready boolean — check conditions first, fall back
+    # to the old field for older chart versions.
+    READY=$(kubectl get clusterpolicy "$policy" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+    [[ -z "$READY" ]] && READY=$(kubectl get clusterpolicy "$policy" -o jsonpath='{.status.ready}' 2>/dev/null)
+    [[ "$READY" == "True" || "$READY" == "true" ]] && break
     sleep 3
   done
-  [[ "$READY" == "true" ]] \
+  [[ "$READY" == "True" || "$READY" == "true" ]] \
     && log_ok "Policy ${policy} ready" \
     || log_warn "Policy ${policy} not ready yet — check: kubectl get clusterpolicy ${policy} -o yaml"
 done

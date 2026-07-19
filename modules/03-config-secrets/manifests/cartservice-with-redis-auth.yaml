@@ -5,6 +5,14 @@
 # defined first so REDIS_ADDR can reference it via $(REDIS_PASSWORD)
 # (Kubernetes only expands $(VAR) references to vars already defined earlier
 # in the same container's env list).
+#
+# seccompProfile is required, not decorative — Module 06's "restricted"
+# Pod Security Admission rejects any *new* Pod without it outright
+# ("must set securityContext.seccompProfile.type"). It doesn't touch
+# already-Running pods, so this only surfaces the moment something tries
+# to create a fresh cartservice replica after Module 06 has run (e.g.
+# Module 07's own scale-to-2-replicas step) — found by hitting that
+# exact FailedCreate on a live cluster, not by reading the PSA spec.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,6 +35,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: server
           securityContext:

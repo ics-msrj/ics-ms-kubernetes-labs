@@ -1,6 +1,10 @@
 # Copy to terraform.tfvars and fill in your own values.
 # terraform.tfvars is git-ignored — never commit real subscription-tied values.
 
+# `az account show --query id -o tsv`. Pinned explicitly so this
+# configuration can't silently follow a later change to your active `az`
+# subscription (see variables.tf for why that matters).
+subscription_id     = "00000000-0000-0000-0000-000000000000"
 location            = "southeastasia"
 resource_group_name = "rg-aks-platform-lab"
 # Uncomment if resource_group_name already exists (e.g. a shared/production
@@ -9,10 +13,14 @@ resource_group_name = "rg-aks-platform-lab"
 # create_resource_group = false
 cluster_name = "aks-platform-lab"
 
-system_node_vm_size = "Standard_D2s_v5"
+# Dsv3, not the newer Dsv5 — many subscriptions start with 0 Dsv5-family
+# quota until a support request raises it. Check
+# `az vm list-usage --location <region> -o table` and bump the generation
+# or size if your subscription has more room.
+system_node_vm_size = "Standard_D2s_v3"
 system_node_count   = 1
 
-workload_node_vm_size = "Standard_D4s_v5"
+workload_node_vm_size = "Standard_D2s_v3"
 workload_min_count    = 1
 workload_max_count    = 3
 
@@ -20,3 +28,28 @@ workload_node_label_key   = "workload"
 workload_node_label_value = "autoscale"
 
 enable_snapshot_controller = true
+
+# Uncomment and set to an existing azurerm_disk_encryption_set's resource ID
+# for customer-managed-key (CMK) disk encryption. This configuration never
+# creates the Disk Encryption Set itself, only references one that already
+# exists — leave unset to use Azure's platform-managed key instead.
+# disk_encryption_set_id = "/subscriptions/.../resourceGroups/.../providers/Microsoft.Compute/diskEncryptionSets/..."
+
+# Uncomment and set to an existing Key Vault's name (in resource_group_name)
+# to enable the Key Vault Secrets Provider add-on — Secrets Store CSI in
+# place of Module 03's native Sealed Secrets treatment for this track.
+# Leave unset to skip it (Module 03 then runs natively unmodified).
+# key_vault_name = "kv-example-001"
+
+container_registry_name = "acrakslab001" # must be globally unique, alphanumeric only
+container_registry_sku  = "Basic"
+
+# Uncomment to use Azure Backup for AKS instead of enable-backup.sh's
+# Velero+MinIO install. Creates its own dedicated resource group for
+# snapshot storage (never resource_group_name — the cluster identity needs
+# Contributor on wherever snapshots live, and that shouldn't be a resource
+# group with unrelated resources in it).
+# enable_aks_backup           = true
+# backup_resource_group_name  = "rg-aks-backup-lab"
+# backup_storage_account_name = "staksbackuplab001" # globally unique, lowercase alphanumeric, 3-24 chars
+# backup_vault_name           = "bvault-aks-lab"

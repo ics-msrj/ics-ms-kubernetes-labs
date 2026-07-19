@@ -18,6 +18,14 @@ rest of `platforms/aks/` operates against:
   just AKS-managed instead of self-installed.
 - The CSI snapshot controller enabled at create time (off by default on
   AKS; Module 05's VolumeSnapshot support needs it).
+- One Azure Container Registry (`container_registry_name`), with the
+  cluster's kubelet identity granted `AcrPull` on it — for custom images,
+  not required for the stock Online Boutique manifests (those pull public
+  images directly).
+- Optionally, customer-managed-key (CMK) disk encryption via
+  `disk_encryption_set_id` — references an existing
+  `azurerm_disk_encryption_set`, never creates one. Leave unset for
+  Azure's platform-managed key.
 
 It does **not** enable VPA, KEDA, or the application-routing Gateway API —
 those are `az aks update` operations `platforms/aks/scripts/

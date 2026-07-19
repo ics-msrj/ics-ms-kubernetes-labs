@@ -8,6 +8,12 @@
 # The http listener exists only so cert-manager's ACME HTTP-01 solver has
 # somewhere to attach its temporary challenge HTTPRoute — the real
 # HTTPRoute (reused unmodified from Module 04) attaches only to https.
+#
+# hostname is required on both listeners here — unlike native's Cilium
+# Gateway implementation, AKS's app-routing-istio controller rejects a
+# listener with no hostname outright ("Skipped a listener block: ...
+# hostname cannot be empty" in `kubectl get events`), and cert-manager's
+# gateway-shim also needs it to know what DNS name to request.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -21,12 +27,14 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
+      hostname: __APP_DOMAIN__
       allowedRoutes:
         namespaces:
           from: Same
     - name: https
       protocol: HTTPS
       port: 443
+      hostname: __APP_DOMAIN__
       tls:
         mode: Terminate
         certificateRefs:

@@ -70,8 +70,12 @@ else
 fi
 
 for policy in disallow-latest-tag require-resource-limits; do
-  READY=$(kubectl get clusterpolicy "$policy" -o jsonpath='{.status.ready}' 2>/dev/null)
-  if [[ "$READY" == "true" ]]; then
+  # Kyverno 3.x reports readiness via status.conditions[type=Ready], not the
+  # older status.ready boolean — check conditions first, fall back to the
+  # old field for older chart versions.
+  READY=$(kubectl get clusterpolicy "$policy" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+  [[ -z "$READY" ]] && READY=$(kubectl get clusterpolicy "$policy" -o jsonpath='{.status.ready}' 2>/dev/null)
+  if [[ "$READY" == "True" || "$READY" == "true" ]]; then
     check_pass "ClusterPolicy ${policy} is ready"
   else
     check_fail "ClusterPolicy ${policy} not ready (got '${READY:-<none>}')"

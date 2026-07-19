@@ -92,9 +92,15 @@ else
   kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/v${CERT_MANAGER_VERSION}/cert-manager.crds.yaml"
   helm repo add jetstack https://charts.jetstack.io &>/dev/null || true
   helm repo update jetstack &>/dev/null
+  # config.gatewayAPI.enabled=true turns on cert-manager's gateway-shim —
+  # without it the controller never watches Gateway resources at all, so
+  # the Certificate the Gateway annotation below expects is never created.
+  # Defaults to config: {} (disabled) on the chart, easy to miss since the
+  # install otherwise succeeds silently.
   helm install cert-manager jetstack/cert-manager \
     --version "v${CERT_MANAGER_VERSION}" \
-    --namespace cert-manager --create-namespace
+    --namespace cert-manager --create-namespace \
+    --set config.gatewayAPI.enabled=true
 fi
 kubectl rollout status deployment/cert-manager -n cert-manager --timeout=120s
 kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s

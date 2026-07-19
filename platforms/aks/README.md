@@ -45,6 +45,7 @@ bash platforms/aks/scripts/aks-track.sh enable-managed-addons
 bash platforms/aks/scripts/aks-track.sh connect
 bash platforms/aks/scripts/aks-track.sh preflight
 bash platforms/aks/scripts/aks-track.sh deploy-core-workloads
+bash platforms/aks/scripts/aks-track.sh enable-secrets         # Module 03 — see below if AKS_KEY_VAULT_NAME isn't set
 bash platforms/aks/scripts/aks-track.sh enable-networking      # Module 04
 bash platforms/aks/scripts/aks-track.sh enable-storage         # Module 05
 bash platforms/aks/scripts/aks-track.sh enable-scaling         # Module 07
@@ -62,20 +63,53 @@ were actually run (their absence is a WARN, not a FAIL).
 
 ## Run natively, unmodified
 
-Modules 03, 06, 09, 10, 11, 12, 15, and 16 have zero infra-specific
+Modules 06, 10, 11, 12, 15, and 16 have zero infra-specific
 assumptions — verified by reading every one of their setup.sh scripts, not
 assumed from the table below. Run them exactly as the native track's own
 README says to, in order, once their explicit prerequisites above are met:
 
 ```bash
-bash modules/03-config-secrets/scripts/setup.sh
 bash modules/06-security-policy/scripts/setup.sh
-bash modules/09-logging/scripts/setup.sh
+LOKI_STORAGE_CLASS="${AKS_STORAGE_CLASS}" bash modules/09-logging/scripts/setup.sh   # see note below — this one DOES need a fixup
 bash modules/10-package-management/scripts/setup.sh   # or use charts/kustomize directly
 bash modules/11-gitops-cicd/scripts/setup.sh           # needs a real Git remote, same as native
 bash modules/12-progressive-delivery/scripts/setup.sh  # needed before enable-servicemesh below
 bash modules/15-multi-tenancy-cost/scripts/setup.sh
 bash modules/16-supply-chain-security/scripts/setup.sh
+```
+
+Module 09 is the one exception to "zero infra-specific assumptions": its
+`setup.sh` hard-required the `longhorn` StorageClass (native track only) —
+now takes `LOKI_STORAGE_CLASS` as an override, fixed here since it's a
+real gap, not AKS-specific behavior. Set it to `${AKS_STORAGE_CLASS}`
+(`managed-csi-tagged` in this repo's own aks.env) as shown above. Its
+Loki/Alloy Helm installs also now set explicit CPU/memory requests+limits
+on every container — needed to pass Module 06's `require-resource-limits`
+ClusterPolicy (cluster-wide, not just `online-boutique`) if Module 06 ran
+first, and harmless either way otherwise.
+
+Module 09's `verify.sh` will always report `Alloy: N-1/N nodes ready` on
+AKS, where N is the total node count including the system pool — Alloy
+(like every other app/log-shipping DaemonSet in this track) doesn't
+tolerate the system pool's taint, matching this track's own rule that the
+system pool never runs application Pods. This isn't a failure to fix; on
+AKS, `N-1/N` is the expected steady state (all `online-boutique` and
+`monitoring` namespace logs still ship — nothing on the system pool needs
+covering here).
+
+Module 03 is **not** in this list — `enable-secrets.sh` above replaces it
+when `AKS_KEY_VAULT_NAME` is set (Key Vault Secrets Provider instead of
+Sealed Secrets; see [Platform Decisions](#platform-decisions)). Without a
+Key Vault, run Module 03's own native `setup.sh` instead, with one fixup
+its `redis-cart-statefulset-with-auth.yaml` needs on AKS (hardcodes
+`storageClassName: local-path`, an immutable StatefulSet field once
+applied):
+
+```bash
+bash modules/03-config-secrets/scripts/setup.sh
+sed "s/storageClassName: local-path/storageClassName: ${AKS_STORAGE_CLASS}/" \
+  modules/03-config-secrets/manifests/redis-cart-statefulset-with-auth.yaml \
+  | kubectl apply -n online-boutique -f -
 ```
 
 ## Optional: Service Mesh (Module 17 equivalent)
@@ -92,6 +126,25 @@ add-on — that add-on cannot be combined with application-routing's
 Istio-based Gateway (confirmed against Microsoft's own docs), and
 self-managed Istio has no such conflict since App Routing owns north-south
 ingress while this owns east-west mesh traffic.
+
+## Optional: Cloudflare Tunnel
+
+An alternative to enable-networking.sh's public LoadBalancer + cert-manager/
+ACME path — useful when a domain is already proxied through Cloudflare
+(orange-clouded), since ACME HTTP-01 can't complete against a record that
+doesn't yet resolve to this cluster's LoadBalancer IP:
+
+```bash
+# Generate a tunnel token in the Cloudflare Zero Trust dashboard
+# (Networks > Tunnels > create/select a tunnel > Install connector > Docker)
+# and set CF_TUNNEL_TOKEN in aks.env — never commit a real value.
+bash platforms/aks/scripts/aks-track.sh enable-cf-tunnel
+```
+
+Runs the `cloudflared` connector pods only (2 replicas, spread across
+nodes). Public-hostname routing — which Cloudflare hostname maps to which
+in-cluster Service — is dashboard-side config on the tunnel this token
+belongs to, not something this script or its manifest configures.
 
 ## Optional: Multi-Cluster (Module 14 equivalent)
 
@@ -132,10 +185,13 @@ bash platforms/aks/scripts/aks-track.sh destroy
 ```
 
 Removes the `online-boutique` namespace, the `velero` namespace (MinIO/
-Velero), and Rancher (if installed). It does not disable the managed
-add-ons `enable-managed-addons.sh` turned on, and it does not touch the
-AKS cluster or its node pools — those are Azure-billed resources this
-track doesn't own. Modules run natively (03/06/09/10/11/12/15/16) and
+Velero, only present when `AKS_ENABLE_AKS_BACKUP` is unset/`0`), and
+Rancher (if installed). It does not disable the managed add-ons
+`enable-managed-addons.sh` turned on, does not touch the AKS Backup Vault
+or its Terraform-managed resources (destroy those via `terraform destroy`
+or by setting `enable_aks_backup = false`), and does not touch the AKS
+cluster or its node pools — those are Azure-billed resources this track
+doesn't own. Modules run natively (03/06/09/10/11/12/15/16) and
 Istio/Kiali/Tempo (`enable-servicemesh.sh`) aren't covered — clean those
 up with their own native `destroy.sh`/`helm uninstall` if needed.
 
@@ -146,17 +202,17 @@ up with their own native `destroy.sh`/`helm uninstall` if needed.
 | 00 Prerequisites | Adapt | `check-prerequisites.sh` — same tool checks as Module 00, `az` replaces `ssh` as the one required addition. |
 | 01 Cluster Setup | Replace | AKS owns the control plane, CNI, kubelet, and node lifecycle. |
 | 02 Core Workloads | Supported | Use `deploy-core-workloads.sh`; Azure Disk CSI replaces local-path. |
-| 03 Config & Secrets | Supported | Run its existing setup after Module 02. |
+| 03 Config & Secrets | Adapt | `enable-secrets.sh` — Key Vault Secrets Provider instead of Sealed Secrets when `AKS_KEY_VAULT_NAME` is set (no `kubeseal`/sealed-secrets-controller at all); ConfigMap and the redis-cart-with-auth/cartservice-with-auth manifests still reused unmodified from Module 03. Without a Key Vault, run Module 03's own native setup.sh instead — see "Run natively, unmodified" below for its one required fixup. |
 | 04 Networking & Gateway | Adapt | `enable-networking.sh` — reuses Module 04's ClusterIssuers/HTTPRoute/NetworkPolicy unmodified, Gateway swapped to `approuting-istio`. |
 | 05 Storage | Replace | `enable-storage.sh` — redis-cart is already on managed-csi as of Module 02; this confirms CSI snapshot support and takes a real snapshot. |
 | 06 Security Policy | Supported | Run its existing setup after Module 02. |
 | 07 Scalability & HA | Adapt | `enable-scaling.sh` — skips installing metrics-server/VPA/KEDA (AKS ships/manages them already), reuses Module 07's HPA/VPA/ScaledObject/PDB manifests unmodified. |
-| 08 Observability | Adapt | `enable-observability.sh` — `nodeExporter.enabled=true` (opposite of native — no separate DaemonSet to collide with), skips the native PodMonitor, everything else (sealed password, cert-manager ServiceMonitor, PrometheusRule) reused unmodified. |
-| 09 Logging | Supported | Run its existing setup after Module 08. |
+| 08 Observability | Adapt | `enable-observability.sh` — `nodeExporter.enabled=true` (opposite of native — no separate DaemonSet to collide with), skips the native PodMonitor. Grafana's admin password comes from Key Vault when `AKS_KEY_VAULT_NAME` is set, native kubeseal flow otherwise; cert-manager's ServiceMonitor and the PrometheusRule reused unmodified either way. |
+| 09 Logging | Adapt | Run its existing setup after Module 08, with `LOKI_STORAGE_CLASS=${AKS_STORAGE_CLASS}` — its `setup.sh` hardcoded the `longhorn` StorageClass, now parameterized. See "Run natively, unmodified" below. |
 | 10 Package Management | Supported | Run its existing setup, or use `charts/`/`kustomize/` directly — infra-agnostic either way. |
 | 11 GitOps & CI/CD | Supported | Run its existing setup — needs a real Git remote, same requirement as native. |
 | 12 Progressive Delivery | Supported | Run its existing setup — required before `enable-servicemesh.sh` (frontend must already be a Rollout). |
-| 13 Cluster Operations | Replace | `enable-backup.sh` — no etcd snapshot step (AKS backs up its own control plane); Velero/MinIO/backup/restore manifests reused unmodified from Module 13, only the storage class changed; node drain drill reused, scoped to the workload pool only. |
+| 13 Cluster Operations | Replace | `enable-backup.sh` — no etcd snapshot step (AKS backs up its own control plane). Azure Backup for AKS (Backup Vault/Extension from `terraform/backup.tf`) when `AKS_ENABLE_AKS_BACKUP=1`; otherwise Velero/MinIO/backup/restore manifests reused unmodified from Module 13, only the storage class changed. Node drain drill reused either way, scoped to the workload pool only. |
 | 14 Multi-Cluster | Replace | `enable-multicluster.sh` + `promote-canary.sh` — Rancher install and canary-app.yaml reused unmodified from Module 14, only rancher-values.yaml's GatewayClass differs. Second cluster via a Terraform workspace, not bootstrapped VMs. |
 | 15 Multi-Tenancy & Cost | Supported | Run its existing setup after Module 08. |
 | 16 Supply Chain Security | Supported | Run its existing setup after Modules 02 and 06. |
@@ -177,6 +233,35 @@ HPA and observes AKS Cluster Autoscaler add nodes only for unschedulable Pods.
 - AKS application-routing Gateway API is used instead of the Cilium Gateway.
 - Azure Disk CSI `managed-csi` replaces local-path and Longhorn for this lab.
 - AKS system node pools are never selected by application or load-test Pods.
+- Key Vault Secrets Provider is used instead of Sealed Secrets when a Key
+  Vault is available (`AKS_KEY_VAULT_NAME` set) — real secret storage
+  instead of a from-scratch demo mechanism, and removes an entire
+  dependency chain (`kubeseal` CLI, sealed-secrets-controller, Module 03
+  needing to run before anything that needs a secret) that caused two
+  separate real bugs during this track's development. Sealed Secrets
+  remains the default with no Key Vault configured — it's still the
+  better choice for a from-scratch lab with nothing else to lean on.
+- Prometheus/Grafana (`enable-observability.sh`) deliberately stays
+  self-managed (kube-prometheus-stack) rather than switching to Azure
+  Monitor managed Prometheus/Grafana — that matches Module 08's own
+  mechanism, which is the point of this track's module-parity goal. A
+  managed-service swap here would be a reasonable production
+  recommendation, just a different goal than what this repo teaches.
+- Backup (`enable-backup.sh`) uses Azure Backup for AKS instead of
+  Velero+MinIO when `AKS_ENABLE_AKS_BACKUP=1` — a deliberate departure
+  from Module 13's own mechanism, unlike the other rows in this table.
+  Azure Backup for AKS's internal PV snapshot step creates its disk
+  snapshots without any way to pass custom tags, so subscriptions with a
+  mandatory-tag Azure Policy (`Require a tag on resources`, `deny` effect)
+  will see every backup complete as `CompletedWithWarnings` — cluster
+  resources back up fine, PV data doesn't — until that policy is disabled
+  or exempted for the backup resource group. Velero+MinIO doesn't have
+  this problem because it snapshots through this repo's own
+  `VolumeSnapshotClass` (`manifests/volumesnapshotclass.yaml`), which
+  already carries the required tags. Velero+MinIO remains the default
+  (`AKS_ENABLE_AKS_BACKUP=0`) for that reason — it's the mechanism that
+  works regardless of the subscription's tag policy; switch to Azure
+  Backup for AKS once you've confirmed (or exempted) your own policy.
 
 ## References
 

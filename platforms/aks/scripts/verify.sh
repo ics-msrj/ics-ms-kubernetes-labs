@@ -49,6 +49,8 @@ for dep in frontend cartservice checkoutservice currencyservice emailservice pay
 done
 SC=$(kubectl get pvc redis-data-redis-cart-0 -n online-boutique -o jsonpath='{.spec.storageClassName}' 2>/dev/null)
 [[ "$SC" == "${AKS_STORAGE_CLASS}" ]] && check_pass "redis-cart PVC on ${AKS_STORAGE_CLASS}" || check_fail "redis-cart PVC on '${SC:-none}', expected ${AKS_STORAGE_CLASS}"
+kubectl get secret redis-cart-credentials -n online-boutique >/dev/null 2>&1 \
+  && check_pass "redis-cart-credentials Secret exists" || check_fail "redis-cart-credentials Secret not found"
 
 echo ""
 echo -e "${BLUE}--- Networking (Module 04) ---${NC}"
@@ -83,10 +85,23 @@ fi
 
 echo ""
 echo -e "${BLUE}--- Backup (Module 13) ---${NC}"
-BSL_PHASE=$(kubectl get backupstoragelocation default -n velero -o jsonpath='{.status.phase}' 2>/dev/null)
-[[ "$BSL_PHASE" == "Available" ]] && check_pass "Velero BackupStorageLocation is Available" || check_warn "BackupStorageLocation phase '${BSL_PHASE:-<none>}' (run enable-backup.sh)"
-BACKUP_PHASE=$(kubectl get backup online-boutique-backup -n velero -o jsonpath='{.status.phase}' 2>/dev/null)
-[[ "$BACKUP_PHASE" == "Completed" ]] && check_pass "online-boutique-backup Completed" || check_warn "online-boutique-backup phase '${BACKUP_PHASE:-<none>}'"
+if [[ "${AKS_ENABLE_AKS_BACKUP:-0}" == "1" ]]; then
+  EXT_READY=$(kubectl get pods -n dataprotection-microsoft --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
+  [[ "$EXT_READY" -ge 1 ]] && check_pass "Azure Backup for AKS extension is Running" || check_fail "dataprotection-microsoft extension not Running"
+  if [[ -n "${AKS_BACKUP_RESOURCE_GROUP:-}" && -n "${AKS_BACKUP_VAULT_NAME:-}" ]]; then
+    LATEST_STATUS=$(az dataprotection job list --subscription "${AKS_SUBSCRIPTION_ID}" --resource-group "${AKS_BACKUP_RESOURCE_GROUP}" --vault-name "${AKS_BACKUP_VAULT_NAME}" --query "max_by([?properties.operation=='Backup'].properties, &startTime).status" -o tsv 2>/dev/null)
+    case "$LATEST_STATUS" in
+      Completed) check_pass "Latest AKS Backup job Completed" ;;
+      CompletedWithWarnings) check_warn "Latest AKS Backup job Completed With Warnings" ;;
+      *) check_warn "Latest AKS Backup job status '${LATEST_STATUS:-<none>}' (run enable-backup.sh)" ;;
+    esac
+  fi
+else
+  BSL_PHASE=$(kubectl get backupstoragelocation default -n velero -o jsonpath='{.status.phase}' 2>/dev/null)
+  [[ "$BSL_PHASE" == "Available" ]] && check_pass "Velero BackupStorageLocation is Available" || check_warn "BackupStorageLocation phase '${BSL_PHASE:-<none>}' (run enable-backup.sh)"
+  BACKUP_PHASE=$(kubectl get backup online-boutique-backup -n velero -o jsonpath='{.status.phase}' 2>/dev/null)
+  [[ "$BACKUP_PHASE" == "Completed" ]] && check_pass "online-boutique-backup Completed" || check_warn "online-boutique-backup phase '${BACKUP_PHASE:-<none>}'"
+fi
 
 echo ""
 echo -e "${BLUE}--- Service Mesh (Module 17, optional) ---${NC}"

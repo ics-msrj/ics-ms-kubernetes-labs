@@ -15,10 +15,21 @@ fi
 
 AKS_RESOURCE_GROUP="${AKS_RESOURCE_GROUP:-}"
 AKS_CLUSTER_NAME="${AKS_CLUSTER_NAME:-}"
+AKS_SUBSCRIPTION_ID="${AKS_SUBSCRIPTION_ID:-}"
 AKS_WORKLOAD_NODEPOOL="${AKS_WORKLOAD_NODEPOOL:-workloadpool}"
 AKS_STORAGE_CLASS="${AKS_STORAGE_CLASS:-managed-csi}"
 AKS_WORKLOAD_LABEL_KEY="${AKS_WORKLOAD_LABEL_KEY:-workload}"
 AKS_WORKLOAD_LABEL_VALUE="${AKS_WORKLOAD_LABEL_VALUE:-autoscale}"
+
+# Every script sourcing this library gets the correct subscription pinned
+# for its `az` calls — without this, they silently follow whatever
+# subscription `az account show` currently defaults to, which drifted mid
+# this project (Terraform's provider had the identical problem; see
+# platforms/aks/terraform/variables.tf's subscription_id for the same fix).
+if [[ -n "${AKS_SUBSCRIPTION_ID}" ]]; then
+  az account set --subscription "${AKS_SUBSCRIPTION_ID}" 2>/dev/null \
+    || { echo -e "\033[0;31m[ERROR]\033[0m Failed to set az subscription to ${AKS_SUBSCRIPTION_ID}. Run 'az login' first." >&2; exit 1; }
+fi
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }

@@ -1,0 +1,13 @@
+# GKE equivalent of modules/05-storage/manifests/redis-cart-snapshot.yaml —
+# same PVC name (deploy-core-workloads.sh reused Module 02's StatefulSet
+# manifest unmodified, only its storageClassName was patched), only the
+# VolumeSnapshotClass differs.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: redis-cart-snapshot
+  namespace: online-boutique
+spec:
+  volumeSnapshotClassName: standard-rwo
+  source:
+    persistentVolumeClaimName: redis-data-redis-cart-0

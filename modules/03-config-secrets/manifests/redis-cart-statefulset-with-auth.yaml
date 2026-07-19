@@ -42,6 +42,11 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+        # Required by Module 06's "restricted" Pod Security Admission —
+        # see the matching note in cartservice-with-redis-auth.yaml for
+        # how this was actually found.
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: redis
           securityContext:

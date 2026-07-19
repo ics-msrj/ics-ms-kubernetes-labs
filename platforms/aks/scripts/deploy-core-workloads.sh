@@ -12,6 +12,17 @@ source "${SCRIPT_DIR}/lib/common.sh"
 require_command kubectl
 require_config
 require_cluster
+
+# AKS's built-in `managed-csi` StorageClass creates disks with no tags —
+# this subscription's tag-requirement policies deny that outright, leaving
+# every PVC on it stuck Pending (ProvisioningFailed). If AKS_STORAGE_CLASS
+# points at our own tagged StorageClass instead of the stock one, apply it
+# (idempotent) before anything tries to claim a volume from it.
+if [[ "${AKS_STORAGE_CLASS}" == "managed-csi-tagged" ]]; then
+  [[ -n "${AKS_DISK_ENCRYPTION_SET_ID:-}" ]] || die "AKS_DISK_ENCRYPTION_SET_ID must be set in aks.env when AKS_STORAGE_CLASS=managed-csi-tagged."
+  sed "s|__DISK_ENCRYPTION_SET_ID__|${AKS_DISK_ENCRYPTION_SET_ID}|g" \
+    "${PLATFORM_DIR}/manifests/storageclass-managed-csi-tagged.yaml" | kubectl apply -f -
+fi
 kubectl get storageclass "${AKS_STORAGE_CLASS}" >/dev/null || die "StorageClass ${AKS_STORAGE_CLASS} not found."
 
 MODULE_DIR="${REPO_ROOT}/modules/02-core-workloads"

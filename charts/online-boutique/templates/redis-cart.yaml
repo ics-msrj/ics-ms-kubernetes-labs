@@ -66,6 +66,10 @@ spec:
       labels:
         app: redis-cart
     spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext.pod | nindent 8 }}
       containers:

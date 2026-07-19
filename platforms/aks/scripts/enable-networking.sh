@@ -45,8 +45,17 @@ echo "  Domain: ${APP_DOMAIN}   TLS issuer: ${TLS_ISSUER}"
 echo "================================================================"
 echo ""
 
-log_info "Installing Gateway API CRDs v${GATEWAY_API_VERSION} (idempotent if App Routing already installed them)..."
-kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/v${GATEWAY_API_VERSION}/standard-install.yaml"
+if kubectl get crd gatewayclasses.gateway.networking.k8s.io >/dev/null 2>&1; then
+  log_info "Gateway API CRDs already present (installed by AKS's Managed Gateway API / enable-managed-addons.sh) — skipping"
+else
+  # AKS's application-routing add-on requires the *Managed* Gateway API CRD
+  # installation (`az aks update --enable-gateway-api`, run by
+  # enable-managed-addons.sh) — applying a different, self-managed CRD
+  # bundle version here on top of it is unsupported and fails outright, so
+  # this only runs as a fallback if that step was somehow skipped.
+  log_info "Installing Gateway API CRDs v${GATEWAY_API_VERSION}..."
+  kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/v${GATEWAY_API_VERSION}/standard-install.yaml"
+fi
 
 log_info "Installing cert-manager v${CERT_MANAGER_VERSION} (same as Module 04, no AKS-specific change)..."
 if kubectl get deployment cert-manager -n cert-manager >/dev/null 2>&1; then
@@ -55,9 +64,15 @@ else
   kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/v${CERT_MANAGER_VERSION}/cert-manager.crds.yaml"
   helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
   helm repo update jetstack >/dev/null
+  # config.gatewayAPI.enabled=true turns on cert-manager's gateway-shim —
+  # without it the controller never watches Gateway resources at all, so
+  # the Certificate the Gateway annotation below expects is never created.
+  # Defaults to config: {} (disabled) on the chart, easy to miss since the
+  # install otherwise succeeds silently.
   helm install cert-manager jetstack/cert-manager \
     --version "v${CERT_MANAGER_VERSION}" \
-    --namespace cert-manager --create-namespace
+    --namespace cert-manager --create-namespace \
+    --set config.gatewayAPI.enabled=true
 fi
 kubectl rollout status deployment/cert-manager -n cert-manager --timeout=120s
 kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s
@@ -73,7 +88,7 @@ fi
 log_ok "ClusterIssuers applied"
 
 log_info "Applying Gateway (approuting-istio, issuer: ${TLS_ISSUER}) and HTTPRoute (host: ${APP_DOMAIN})..."
-sed "s|__TLS_ISSUER__|${TLS_ISSUER}|g" "${PLATFORM_DIR}/manifests/gateway.yaml" | kubectl apply -f -
+sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__APP_DOMAIN__|${APP_DOMAIN}|g" "${PLATFORM_DIR}/manifests/gateway.yaml" | kubectl apply -f -
 sed "s|__APP_DOMAIN__|${APP_DOMAIN}|g" "${NATIVE_MODULE_DIR}/manifests/httproute-frontend.yaml" | kubectl apply -f -
 log_ok "Gateway and HTTPRoute applied"
 

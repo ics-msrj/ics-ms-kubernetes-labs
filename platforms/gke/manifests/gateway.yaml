@@ -1,0 +1,52 @@
+# GKE equivalent of modules/04-networking-gateway/manifests/gateway.yaml —
+# identical in every respect except gatewayClassName. GKE's own Gateway
+# controller (enabled by enable-managed-addons.sh's --gateway-api=standard)
+# provides gke-l7-regional-external-managed — a single-cluster regional
+# external HTTP(S) Load Balancer, matching this cluster's own zonal/regional
+# scope (asia-southeast1). cert-manager still handles TLS the same way it
+# does on the native track (gateway-shim, no GCP-managed-certificate
+# mechanism needed).
+#
+# hostname is required on both listeners — cert-manager's gateway-shim
+# needs it on the TLS listener to know which host the certificate should
+# cover, and the HTTP-01 solver's temporary HTTPRoute needs a real port-80
+# listener to attach to (same requirement as AKS's app-routing-istio, this
+# one documented directly in cert-manager's own docs, not GKE-specific).
+#
+# cert-manager.io/common-name: without it, gateway-shim's auto-generated
+# Certificate has an empty Subject (SAN-only) — GCP's regional external
+# LB rejected that outright ("error cause: ... The SSL certificate could
+# not be parsed"), a real error hit running this live, not a guess. GCP's
+# own docs say a cert needs "either a common name (CN) or subject
+# alternative name (SAN)"; empirically its parser wants a non-empty
+# Subject specifically, SAN alone wasn't enough.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: online-boutique
+  annotations:
+    cert-manager.io/cluster-issuer: __TLS_ISSUER__
+    cert-manager.io/common-name: __APP_DOMAIN__
+spec:
+  gatewayClassName: gke-l7-regional-external-managed
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: __APP_DOMAIN__
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: __APP_DOMAIN__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: frontend-tls
+      allowedRoutes:
+        namespaces:
+          from: Same

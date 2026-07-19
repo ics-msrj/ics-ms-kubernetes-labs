@@ -6,6 +6,19 @@ image:
   registry: us-central1-docker.pkg.dev/google-samples/microservices-demo
   tag: v0.10.5
 
+# Empty by default — native kubeadm has no system/workload node-pool split
+# to route around. On managed platforms that reserve a system pool for
+# their own components (AKS, GKE), override at install time (e.g. --set
+# nodeSelector.workload=autoscale) — this chart has no built-in awareness
+# of any particular platform's pool-labeling convention. Found to matter
+# by actually deploying this chart on GKE: without it, pods can land on
+# the system pool, which runs tight on CPU requests, and a burst of
+# simultaneously-starting Pods there can blow through the default 1s gRPC
+# probe timeout repeatedly (CrashLoopBackOff on frontend/emailservice/
+# recommendationservice, all landing there, none of it visible in the
+# app's own logs — it manifests purely as probe timeouts).
+nodeSelector: {}
+
 securityContext:
   pod:
     fsGroup: 1000

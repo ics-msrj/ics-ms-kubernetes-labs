@@ -22,6 +22,8 @@ This repository is a ground-up rewrite, built and validated one module at a time
 
 An additive [AKS platform track](platforms/aks/) is also available for running the application and platform modules on managed Kubernetes. It intentionally replaces kubeadm-, Cilium-, Longhorn-, and SSH-specific steps with AKS-managed equivalents rather than applying those VM-oriented scripts to the managed control plane.
 
+A [GKE platform track](platforms/gke/) follows the same approach for Google Kubernetes Engine — currently Foundation scaffold only (Terraform + prerequisites/connect/preflight), with module adapters to follow once a live cluster exists to verify them against.
+
 ## Workload — Online Boutique
 
 All modules deploy and operate the same application: [`GoogleCloudPlatform/microservices-demo`](https://github.com/GoogleCloudPlatform/microservices-demo), an 11-service e-commerce demo (frontend, cart, checkout, payment, shipping, currency, product catalog, recommendation, ads, email, load generator) communicating over gRPC, backed by Redis. It is a widely recognized reference workload with genuine multi-service failure modes — useful for everything from basic Deployments to service mesh and chaos engineering.

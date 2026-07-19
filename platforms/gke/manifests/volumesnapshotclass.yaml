@@ -1,0 +1,13 @@
+# GKE equivalent of modules/05-storage/manifests/volumesnapshotclass.yaml.
+# driver.longhorn.io -> pd.csi.storage.gke.io (GKE's Persistent Disk CSI
+# driver, the same one behind the standard-rwo StorageClass). Unlike the
+# AKS track, no tags parameter is needed here — this project has no
+# mandatory-label Org Policy (verified: `gcloud resource-manager
+# org-policies list` returned none), so untagged snapshot creation isn't
+# denied the way it was on Azure.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: standard-rwo
+driver: pd.csi.storage.gke.io
+deletionPolicy: Delete

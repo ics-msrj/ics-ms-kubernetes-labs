@@ -22,6 +22,10 @@ spec:
         app: frontend
     spec:
       serviceAccountName: frontend
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext.pod | nindent 8 }}
       containers:
@@ -64,6 +68,16 @@ spec:
               value: "checkoutservice:5050"
             - name: AD_SERVICE_ADDR
               value: "adservice:9555"
+            # frontend:v0.10.5 panics at startup ("environment variable
+            # \"SHOPPING_ASSISTANT_SERVICE_ADDR\" not set") without this —
+            # found by actually deploying the chart, not by reading main.go.
+            # Upstream sets it (workloads/online-boutique/upstream/
+            # kubernetes-manifests.yaml); this chart's template didn't.
+            # No shoppingassistantservice is deployed by this chart — the
+            # address just needs to exist as an env var for frontend to
+            # boot, the AI shopping-assistant feature itself stays unused.
+            - name: SHOPPING_ASSISTANT_SERVICE_ADDR
+              value: "shoppingassistantservice:80"
             - name: ENABLE_PROFILER
               value: "0"
           resources:

@@ -1,6 +1,13 @@
 # AKS equivalent of modules/05-storage/manifests/volumesnapshotclass.yaml.
 # driver.longhorn.io -> disk.csi.azure.com; incremental snapshots only
 # capture changes since the last one, cheaper than full snapshots.
+#
+# tags is required whenever the subscription has "Require a tag on
+# resources" policies — same root cause as
+# storageclass-managed-csi-tagged.yaml, but hitting a different Azure
+# resource type this time (Microsoft.Compute/snapshots, created per
+# VolumeSnapshot, not Microsoft.Compute/disks). Untagged snapshot creation
+# is denied outright (RequestDisallowedByPolicy) with no other symptom.
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
@@ -9,3 +16,4 @@ driver: disk.csi.azure.com
 deletionPolicy: Delete
 parameters:
   incremental: "true"
+  tags: "owner=ics-ms,managed_by=terraform,cost_center=nextops,environment=production,project=k8s-learning-lab"

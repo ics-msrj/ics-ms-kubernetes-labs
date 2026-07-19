@@ -28,13 +28,18 @@ This module also compared **OpenCost** against **Kubecost** before building: bot
 
 ```bash
 helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace \
+  --version 2.8.6 \
   --set global.prometheus.enabled=false \
   --set global.prometheus.fqdn=http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090 \
   --set global.grafana.enabled=false \
-  --set global.grafana.fqdn=monitoring-grafana.monitoring.svc \
+  --set global.grafana.domainName=monitoring-grafana.monitoring.svc \
   --set serviceMonitor.enabled=true \
   --set-string serviceMonitor.additionalLabels.release=monitoring
 ```
+
+Two corrections to this command, both found by actually installing it, not by reading the chart:
+- `--version 2.8.6` is deliberate, not just a pin for reproducibility. The chart's newer 2.9.x series makes `finopsagent` mandatory (a Kubecost 3.0 migration component) and then fails outright unless you also configure a "federated-store" — real added complexity this module has no use for on a single cluster. 2.8.6 predates that requirement.
+- `global.grafana.domainName`, not `global.grafana.fqdn` — the values file lists `fqdn` only as a *comment* next to the real key; setting `fqdn` silently does nothing, leaving the frontend's nginx pointed at its hardcoded default (`cost-analyzer-grafana.default.svc`) and crash-looping with `host not found in upstream`.
 
 ## Architecture
 

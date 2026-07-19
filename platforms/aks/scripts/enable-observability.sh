@@ -9,8 +9,11 @@
 # installs kube-prometheus-stack with nodeExporter.enabled=true (the
 # chart's own default, opposite of Module 08's nodeExporter.enabled=false)
 # instead of applying Module 08's PodMonitor, which targets a DaemonSet
-# that doesn't exist here. Everything else — the sealed Grafana password,
-# cert-manager's ServiceMonitor, the PrometheusRule — is reused unmodified.
+# that doesn't exist here. cert-manager's ServiceMonitor and the
+# PrometheusRule are reused unmodified. The Grafana admin password comes
+# from Key Vault Secrets Provider (see enable-secrets.sh) when
+# AKS_KEY_VAULT_NAME is set — otherwise this falls back to the native
+# kubeseal flow.
 # =============================================================================
 
 set -euo pipefail
@@ -25,9 +28,9 @@ CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-1.21.0}"
 APP_DOMAIN="${APP_DOMAIN:-}"
 TLS_ISSUER="${TLS_ISSUER:-letsencrypt-staging}"
 GRAFANA_DOMAIN="grafana.${APP_DOMAIN}"
+AKS_KEY_VAULT_NAME="${AKS_KEY_VAULT_NAME:-}"
 
 require_command kubectl
-require_command kubeseal
 require_cluster
 kubectl get gateway frontend-gateway -n online-boutique >/dev/null 2>&1 \
   || die "Gateway frontend-gateway not found. Run enable-networking.sh first."
@@ -39,24 +42,52 @@ echo "  Grafana: https://${GRAFANA_DOMAIN}"
 echo "================================================================"
 echo ""
 
-log_info "Generating and sealing a random Grafana admin password..."
-mkdir -p "$GENERATED_DIR"
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-GRAFANA_PASSWORD="$(openssl rand -hex 16)"
-kubectl create secret generic grafana-admin-credentials \
-  --namespace monitoring \
-  --from-literal=admin-user=admin \
-  --from-literal=admin-password="${GRAFANA_PASSWORD}" \
-  --dry-run=client -o yaml \
-  | kubeseal --format=yaml --controller-namespace=kube-system --controller-name=sealed-secrets-controller \
-  > "${GENERATED_DIR}/grafana-admin-sealedsecret.yaml"
-unset GRAFANA_PASSWORD
-kubectl apply -n monitoring -f "${GENERATED_DIR}/grafana-admin-sealedsecret.yaml"
-for _ in $(seq 1 15); do
-  kubectl get secret grafana-admin-credentials -n monitoring >/dev/null 2>&1 && break
-  sleep 2
-done
-log_ok "Grafana admin credentials sealed and applied"
+
+if [[ -n "${AKS_KEY_VAULT_NAME}" ]]; then
+  log_info "Ensuring grafana-admin-username/password exist in ${AKS_KEY_VAULT_NAME} (never overwritten if already present)..."
+  az keyvault secret show --vault-name "${AKS_KEY_VAULT_NAME}" --name grafana-admin-username >/dev/null 2>&1 \
+    || az keyvault secret set --vault-name "${AKS_KEY_VAULT_NAME}" --name grafana-admin-username --value admin >/dev/null
+  if ! az keyvault secret show --vault-name "${AKS_KEY_VAULT_NAME}" --name grafana-admin-password >/dev/null 2>&1; then
+    GRAFANA_PASSWORD="$(openssl rand -hex 16)"
+    az keyvault secret set --vault-name "${AKS_KEY_VAULT_NAME}" --name grafana-admin-password --value "${GRAFANA_PASSWORD}" >/dev/null
+    unset GRAFANA_PASSWORD
+  fi
+
+  KV_SECRETS_PROVIDER_CLIENT_ID=$(az aks show --subscription "${AKS_SUBSCRIPTION_ID}" --resource-group "${AKS_RESOURCE_GROUP}" --name "${AKS_CLUSTER_NAME}" \
+    --query "addonProfiles.azureKeyvaultSecretsProvider.identity.clientId" -o tsv)
+  TENANT_ID=$(az account show --subscription "${AKS_SUBSCRIPTION_ID}" --query tenantId -o tsv)
+  log_info "Applying the Grafana SecretProviderClass (syncs into the grafana-admin-credentials Secret)..."
+  sed -e "s|__KEYVAULT_SECRETS_PROVIDER_CLIENT_ID__|${KV_SECRETS_PROVIDER_CLIENT_ID}|g" \
+      -e "s|__KEY_VAULT_NAME__|${AKS_KEY_VAULT_NAME}|g" \
+      -e "s|__TENANT_ID__|${TENANT_ID}|g" \
+      "${PLATFORM_DIR}/manifests/secretproviderclass-grafana.yaml" | kubectl apply -f -
+  kubectl rollout status deployment/grafana-secrets-sync -n monitoring --timeout=120s
+  for _ in $(seq 1 15); do
+    kubectl get secret grafana-admin-credentials -n monitoring >/dev/null 2>&1 && break
+    sleep 2
+  done
+  log_ok "grafana-admin-credentials Secret synced from Key Vault"
+else
+  require_command kubeseal
+  log_info "AKS_KEY_VAULT_NAME not set — falling back to the native kubeseal flow..."
+  mkdir -p "$GENERATED_DIR"
+  GRAFANA_PASSWORD="$(openssl rand -hex 16)"
+  kubectl create secret generic grafana-admin-credentials \
+    --namespace monitoring \
+    --from-literal=admin-user=admin \
+    --from-literal=admin-password="${GRAFANA_PASSWORD}" \
+    --dry-run=client -o yaml \
+    | kubeseal --format=yaml --controller-namespace=kube-system --controller-name=sealed-secrets-controller \
+    > "${GENERATED_DIR}/grafana-admin-sealedsecret.yaml"
+  unset GRAFANA_PASSWORD
+  kubectl apply -n monitoring -f "${GENERATED_DIR}/grafana-admin-sealedsecret.yaml"
+  for _ in $(seq 1 15); do
+    kubectl get secret grafana-admin-credentials -n monitoring >/dev/null 2>&1 && break
+    sleep 2
+  done
+  log_ok "Grafana admin credentials sealed and applied"
+fi
 
 log_info "Installing kube-prometheus-stack v${KPS_CHART_VERSION} (nodeExporter.enabled=true — AKS has no separate custom DaemonSet to avoid colliding with)..."
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
@@ -86,7 +117,7 @@ kubectl apply -f "${NATIVE_MODULE_DIR}/manifests/prometheusrule-alerts.yaml"
 log_ok "Applied"
 
 log_info "Extending the Gateway with a grafana.${APP_DOMAIN} listener..."
-sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" \
+sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" -e "s|__APP_DOMAIN__|${APP_DOMAIN}|g" \
   "${PLATFORM_DIR}/manifests/gateway-grafana-listener.yaml" | kubectl apply -f -
 sed "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" "${NATIVE_MODULE_DIR}/manifests/httproute-grafana.yaml" | kubectl apply -f -
 
