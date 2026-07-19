@@ -102,9 +102,20 @@ log_ok "trivy, crane, cosign available"
 log_info "Installing Trivy Operator v${TRIVY_OPERATOR_CHART_VERSION}..."
 helm repo add aqua https://aquasecurity.github.io/helm-charts/ &>/dev/null || true
 helm repo update aqua &>/dev/null
+# --set resources.* is required, not cosmetic — the chart's top-level
+# resources: {} (the operator's own Deployment) is blocked by the
+# Kyverno require-resource-limits ClusterPolicy (Module 06), same
+# recurring pattern as every other chart install in this repo. The scan
+# Job containers it spawns per-workload already have sane defaults
+# (trivy.resources in the chart's own values.yaml) and don't need an
+# override here.
 helm upgrade --install trivy-operator aqua/trivy-operator \
   --version "${TRIVY_OPERATOR_CHART_VERSION}" \
   --namespace trivy-system --create-namespace \
+  --set resources.requests.cpu=100m \
+  --set resources.requests.memory=128Mi \
+  --set resources.limits.cpu=500m \
+  --set resources.limits.memory=512Mi \
   --wait --timeout 3m
 log_ok "Trivy Operator ready — scanning every workload cluster-wide"
 
