@@ -4,23 +4,19 @@
 # release name, same namespace. From here on, ArgoCD reconciles it instead
 # of anyone running `helm upgrade` by hand.
 #
-# ignoreDifferences on the redis-cart-credentials Secret is deliberate, not
-# an oversight: this Application's Helm values don't set redisCart.password,
-# so without this, ArgoCD would want to overwrite the real random password
-# Module 10 generated with the chart's committed placeholder default on
-# every sync. This is the same secrets-in-GitOps tension Module 03 solved
-# with Sealed Secrets — a fully GitOps-native version of this Application
-# would source the password from a SealedSecret committed alongside it
-# instead of a Helm value at all.
-#
-# RespectIgnoreDifferences=true is required, not optional — confirmed live:
-# without it, ignoreDifferences only suppresses the OutOfSync status/diff
-# view, the actual sync/apply still overwrites the ignored field with
-# Git's value on the very first sync (redis-cart-credentials got the
-# chart's "changeme-override-at-install" placeholder within a minute of
-# this Application first syncing). This is a real bug in this repo's own
-# GitOps setup, not platform-specific — any Module 11 run following the
-# native instructions as documented, on any platform, hits it.
+# redis-cart-credentials is NOT protected here via ignoreDifferences —
+# tried that first, it doesn't work. ignoreDifferences (even combined with
+# the RespectIgnoreDifferences sync option) only suppresses the OutOfSync
+# status/diff view; confirmed live, TWICE, that argocd-controller still
+# overwrote the real random password with the chart's
+# "changeme-override-at-install" placeholder on sync regardless. The
+# actual fix lives on the Secret itself: the
+# argocd.argoproj.io/sync-options: Ignore annotation in
+# charts/online-boutique/templates/redis-cart.yaml, which excludes the
+# resource from ArgoCD's sync/diff entirely. This is the same
+# secrets-in-GitOps tension Module 03 solved with Sealed Secrets — a fully
+# GitOps-native version of this Application would source the password
+# from a SealedSecret instead of a Helm value at all.
 #
 # helm.parameters below are this specific real deployment's own overrides
 # (GKE: standard-rwo StorageClass, workload-pool nodeSelector) — matching
@@ -54,11 +50,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - RespectIgnoreDifferences=true
-  ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: redis-cart-credentials
-      jsonPointers:
-        - /data
-        - /stringData

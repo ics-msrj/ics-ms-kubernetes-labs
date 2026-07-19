@@ -3,8 +3,8 @@
 # namespace Module 10's setup.sh applied by hand.
 #
 # Same redis-cart-credentials caveat as online-boutique-packaged.yaml — see
-# that file's comment for why ignoreDifferences + RespectIgnoreDifferences
-# are both required here too.
+# that file's comment: the fix is the sync-options: Ignore annotation on
+# the Secret itself, not ignoreDifferences here.
 #
 # kustomize.patches below is this Kustomize source's equivalent of that
 # file's helm.parameters — the committed kustomize/base kustomization.yaml
@@ -55,11 +55,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - RespectIgnoreDifferences=true
-  ignoreDifferences:
-    - group: ""
-      kind: Secret
-      name: redis-cart-credentials
-      jsonPointers:
-        - /data
-        - /stringData

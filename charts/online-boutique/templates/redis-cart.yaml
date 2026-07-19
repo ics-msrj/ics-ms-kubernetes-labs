@@ -5,6 +5,19 @@ here as one chart-managed unit instead. The Secret's password should always
 be overridden at install time (--set redisCart.password=...) — the chart
 default exists so `helm template`/`helm lint` don't fail on a required
 value, not because it's safe to use.
+
+The argocd.argoproj.io/sync-options: Ignore annotation is required, not
+just ignoreDifferences on the owning Application — confirmed live on a
+real GKE deployment (Module 11) that ignoreDifferences + the
+RespectIgnoreDifferences sync option still let argocd-controller
+overwrite this Secret's real, manually-rotated password back to this
+placeholder on sync. Ignore makes ArgoCD skip the resource entirely
+(diff and apply), which is the actual guarantee needed. This means
+ArgoCD will never CREATE this Secret either — fine here because
+setup.sh always creates it via `helm install`/`kubectl apply -k` before
+ArgoCD ever adopts the release (see gitops/apps/*.yaml comments). A
+fully GitOps-native version would source the password from a
+SealedSecret instead, per Module 03.
 */}}
 apiVersion: v1
 kind: Secret
@@ -12,6 +25,8 @@ metadata:
   name: redis-cart-credentials
   labels:
     {{- include "online-boutique.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: Ignore
 type: Opaque
 stringData:
   password: {{ .Values.redisCart.password | quote }}
