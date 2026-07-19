@@ -15,6 +15,14 @@ spec:
   metrics:
     - name: no-restarts-during-canary
       interval: 30s
+      # count is required, not optional, once this metric is referenced
+      # from an inline canary `analysis` step (as opposed to a background
+      # analysisRun, which can run indefinitely) — Argo Rollouts rejected
+      # the Rollout outright with InvalidSpec until this was added: a
+      # step-scoped analysis has to know when it's done. count: 3 gives
+      # ~90s of checking (interval: 30s), inside the 60s pause step before
+      # it that already lets the canary settle.
+      count: 3
       successCondition: result == 0
       failureLimit: 1
       provider:

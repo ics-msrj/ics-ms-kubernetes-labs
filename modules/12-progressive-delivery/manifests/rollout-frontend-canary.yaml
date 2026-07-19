@@ -41,6 +41,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: server
           securityContext:
@@ -85,6 +87,16 @@ spec:
               value: "checkoutservice:5050"
             - name: AD_SERVICE_ADDR
               value: "adservice:9555"
+            # frontend:v0.10.5 panics at startup without this (upstream
+            # sets it — workloads/online-boutique/upstream/kubernetes-
+            # manifests.yaml — this Rollout conversion didn't carry it
+            # over). No shoppingassistantservice runs in this namespace;
+            # the address just needs to exist for frontend to boot. Same
+            # gap already fixed once in charts/online-boutique/templates/
+            # frontend.yaml for the Module 10/11 track — this is the
+            # Module 02 track's copy of the same bug.
+            - name: SHOPPING_ASSISTANT_SERVICE_ADDR
+              value: "shoppingassistantservice:80"
             - name: ENABLE_PROFILER
               value: "0"
           resources:

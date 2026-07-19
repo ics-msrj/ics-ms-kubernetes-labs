@@ -50,9 +50,19 @@ echo ""
 log_info "Installing Argo Rollouts v${ROLLOUTS_CHART_VERSION}..."
 helm repo add argo https://argoproj.github.io/argo-helm &>/dev/null || true
 helm repo update argo &>/dev/null
+# --set controller.resources.* is required, not cosmetic — this cluster's
+# Kyverno require-resource-limits ClusterPolicy (Module 06) blocks any
+# container with no resources.limits, and the chart's own default is
+# resources: {}. Found by the install itself getting denied by the
+# admission webhook, same recurring pattern as every other chart this
+# repo installs.
 helm upgrade --install argo-rollouts argo/argo-rollouts \
   --version "${ROLLOUTS_CHART_VERSION}" \
   --namespace argo-rollouts --create-namespace \
+  --set controller.resources.requests.cpu=50m \
+  --set controller.resources.requests.memory=64Mi \
+  --set controller.resources.limits.cpu=250m \
+  --set controller.resources.limits.memory=256Mi \
   --wait --timeout 3m
 log_ok "Argo Rollouts controller ready"
 
