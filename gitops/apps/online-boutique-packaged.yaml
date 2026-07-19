@@ -4,19 +4,22 @@
 # release name, same namespace. From here on, ArgoCD reconciles it instead
 # of anyone running `helm upgrade` by hand.
 #
-# redis-cart-credentials is NOT protected here via ignoreDifferences —
-# tried that first, it doesn't work. ignoreDifferences (even combined with
-# the RespectIgnoreDifferences sync option) only suppresses the OutOfSync
-# status/diff view; confirmed live, TWICE, that argocd-controller still
-# overwrote the real random password with the chart's
-# "changeme-override-at-install" placeholder on sync regardless. The
-# actual fix lives on the Secret itself: the
-# argocd.argoproj.io/sync-options: Ignore annotation in
-# charts/online-boutique/templates/redis-cart.yaml, which excludes the
-# resource from ArgoCD's sync/diff entirely. This is the same
-# secrets-in-GitOps tension Module 03 solved with Sealed Secrets — a fully
-# GitOps-native version of this Application would source the password
-# from a SealedSecret instead of a Helm value at all.
+# redis-cart-credentials is UNPROTECTED right now — two things already
+# tried and confirmed NOT to work on a real cluster: ignoreDifferences
+# (+RespectIgnoreDifferences=true) only suppresses the OutOfSync
+# status/diff view, and the argocd.argoproj.io/sync-options: Ignore
+# annotation on the Secret itself (charts/online-boutique/templates/
+# redis-cart.yaml) ALSO did not stop argocd-controller from applying the
+# chart's "changeme-override-at-install" placeholder over the real
+# password — three real overwrites total. automated sync is therefore
+# OFF here (manual sync only) until a verified fix lands — do not
+# re-enable automated/selfHeal until this comment is updated to say so.
+# The real fix is almost certainly Module 03's own answer to this exact
+# tension: stop sourcing the password from a Helm value at all, source
+# it from a SealedSecret ArgoCD can sync freely because it's already
+# encrypted ciphertext, decrypted cluster-side by the sealed-secrets
+# controller — not a value ArgoCD's own sync loop ever sees in plaintext
+# to overwrite.
 #
 # helm.parameters below are this specific real deployment's own overrides
 # (GKE: standard-rwo StorageClass, workload-pool nodeSelector) — matching
@@ -45,8 +48,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: online-boutique-packaged
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true

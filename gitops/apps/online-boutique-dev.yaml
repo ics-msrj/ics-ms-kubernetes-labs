@@ -3,8 +3,8 @@
 # namespace Module 10's setup.sh applied by hand.
 #
 # Same redis-cart-credentials caveat as online-boutique-packaged.yaml — see
-# that file's comment: the fix is the sync-options: Ignore annotation on
-# the Secret itself, not ignoreDifferences here.
+# that file's comment. automated sync is OFF here too until a verified
+# fix lands; do not re-enable without updating that comment.
 #
 # kustomize.patches below is this Kustomize source's equivalent of that
 # file's helm.parameters — the committed kustomize/base kustomization.yaml
@@ -50,8 +50,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: online-boutique-dev
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
