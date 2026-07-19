@@ -125,11 +125,26 @@ helm upgrade --install istiod istio/istiod \
 # scratch-patch discipline as this repo's other yq-based overrides,
 # just via `helm template | yq | kubectl apply` instead of `--set`
 # since there's no values path here to set.
+#
+# cniBinDir=/home/kubernetes/bin is a SECOND, separate GKE-specific fix
+# this template|apply approach itself introduced: the chart normally
+# auto-detects GKE via .Capabilities.KubeVersion.GitVersion containing
+# "-gke" and switches to this path on its own (GKE mounts /opt/cni/bin
+# read-only; /home/kubernetes/bin is the actual writable location) —
+# but that Capabilities data is only populated for a live helm
+# install/upgrade, not standalone `helm template`, so switching to
+# template|apply for the priorityClassName fix silently broke this
+# auto-detection too. Found live: install-cni crash-looped with "open
+# /host/opt/cni/bin/istio-cni.tmp...: read-only file system" — the
+# container's own log even names the fix ("Ensure you properly set
+# global.platform=<name>"). Setting cniBinDir explicitly is more robust
+# than relying on template-time auto-detection either way.
 helm uninstall istio-cni -n istio-system &>/dev/null || true
 helm template istio-cni istio/cni \
   --version "${ISTIO_VERSION}" --namespace istio-system \
   --set resources.limits.cpu=200m \
   --set resources.limits.memory=256Mi \
+  --set cniBinDir=/home/kubernetes/bin \
   | yq eval 'del(.spec.template.spec.priorityClassName)' - \
   | kubectl apply -f -
 kubectl rollout status daemonset/istio-cni-node -n istio-system --timeout=180s
