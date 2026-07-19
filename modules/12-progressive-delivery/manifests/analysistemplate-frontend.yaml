@@ -23,10 +23,22 @@ spec:
       # ~90s of checking (interval: 30s), inside the 60s pause step before
       # it that already lets the canary settle.
       count: 3
-      successCondition: result == 0
+      # result is a []float64 (a Prometheus instant-vector result), not a
+      # scalar — `result == 0` errored every measurement on a live
+      # cluster: "invalid operation: == (mismatched types []float64 and
+      # int)". result[0] fixes the type. Tried wrapping it in
+      # default(0, result[0]) for the case where sum() matches zero
+      # series (empty vector) — that measured 0 correctly but still
+      # assessed Failed, so whatever that expr function's real semantics
+      # are here, they weren't what's documented/expected; not confident
+      # enough in why to keep it. Using the standard, well-documented
+      # PromQL idiom instead: `OR on() vector(0)` guarantees the query
+      # itself never returns an empty vector, so result[0] == 0 alone is
+      # sufficient and needs no expression-level fallback.
+      successCondition: result[0] == 0
       failureLimit: 1
       provider:
         prometheus:
           address: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090
           query: |
-            sum(increase(kube_pod_container_status_restarts_total{namespace="online-boutique", pod=~"frontend-.*"}[2m]))
+            sum(increase(kube_pod_container_status_restarts_total{namespace="online-boutique", pod=~"frontend-.*"}[2m])) OR on() vector(0)
