@@ -47,3 +47,17 @@ spec:
               entries:
                 - keys:
                     publicKeys: "PLACEHOLDER"
+                    # Required, not optional, for pure --key signing: Kyverno
+                    # otherwise still tries to confirm the signature has a
+                    # matching entry in Rekor (the PUBLIC sigstore
+                    # transparency log) even when verification itself is
+                    # entirely offline against a local public key — found
+                    # live as "signature not found in transparency log",
+                    # since this lab deliberately never uploads there
+                    # (see setup.sh's --tlog-upload=false comment: a
+                    # throwaway busybox test image has no business creating
+                    # a permanent public record). ignoreTlog: true is
+                    # cosign/Kyverno's own documented way to say that's
+                    # expected for this verification mode, not a workaround.
+                    rekor:
+                      ignoreTlog: true
