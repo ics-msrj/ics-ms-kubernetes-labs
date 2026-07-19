@@ -27,6 +27,7 @@ MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 ISTIO_VERSION="${ISTIO_VERSION:-1.30.2}"
 KIALI_CHART_VERSION="${KIALI_CHART_VERSION:-2.28.0}"
 TEMPO_CHART_VERSION="${TEMPO_CHART_VERSION:-1.24.4}"
+TEMPO_STORAGE_CLASS="${TEMPO_STORAGE_CLASS:-longhorn}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -45,8 +46,8 @@ if ! kubectl get deployment monitoring-kube-prometheus-operator -n monitoring &>
   echo -e "${RED}[ERROR]${NC} Prometheus not found. Complete Module 08 first." >&2
   exit 1
 fi
-if ! kubectl get storageclass longhorn &>/dev/null; then
-  echo -e "${RED}[ERROR]${NC} StorageClass longhorn not found. Complete Module 05 first." >&2
+if ! kubectl get storageclass "${TEMPO_STORAGE_CLASS}" &>/dev/null; then
+  echo -e "${RED}[ERROR]${NC} StorageClass ${TEMPO_STORAGE_CLASS} not found. Complete Module 05 first, or set TEMPO_STORAGE_CLASS to an existing one." >&2
   exit 1
 fi
 
@@ -64,8 +65,14 @@ kubectl create namespace istio-system --dry-run=client -o yaml | kubectl apply -
 helm upgrade --install istio-base istio/base \
   --version "${ISTIO_VERSION}" --namespace istio-system --set defaultRevision=default \
   --wait --timeout 3m
+# pilot.resources.limits is required, not cosmetic — the chart sets
+# requests by default but no limits, blocked by the Kyverno
+# require-resource-limits ClusterPolicy (Module 06), same recurring
+# pattern as every other chart install in this repo.
 helm upgrade --install istiod istio/istiod \
   --version "${ISTIO_VERSION}" --namespace istio-system \
+  --set pilot.resources.limits.cpu=1000m \
+  --set pilot.resources.limits.memory=4096Mi \
   --wait --timeout 5m
 log_ok "Istio control plane ready"
 
@@ -99,10 +106,19 @@ kubectl apply -f "${MODULE_DIR}/manifests/peerauthentication-strict-mtls.yaml"
 log_info "Installing Tempo v${TEMPO_CHART_VERSION}..."
 helm repo add grafana https://grafana.github.io/helm-charts &>/dev/null || true
 helm repo update grafana &>/dev/null
+# tempo.resources.* is required, not cosmetic — the chart's default
+# resources: {} is blocked by the Kyverno require-resource-limits
+# ClusterPolicy, same recurring pattern as every other chart install in
+# this repo.
 helm upgrade --install tempo grafana/tempo \
   --version "${TEMPO_CHART_VERSION}" \
   --namespace monitoring \
   -f "${MODULE_DIR}/manifests/tempo-values.yaml" \
+  --set persistence.storageClassName="${TEMPO_STORAGE_CLASS}" \
+  --set tempo.resources.requests.cpu=200m \
+  --set tempo.resources.requests.memory=512Mi \
+  --set tempo.resources.limits.cpu=1000m \
+  --set tempo.resources.limits.memory=1Gi \
   --wait --timeout 5m
 kubectl apply -f "${MODULE_DIR}/manifests/grafana-tempo-datasource.yaml"
 log_ok "Tempo ready, wired into Module 08's Grafana"
