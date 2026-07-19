@@ -81,10 +81,22 @@ helm upgrade --install istio-base istio/base \
 # default sidecar resource limit is 2 CPU cores; Module 15's own
 # LimitRange on this namespace caps any single container's CPU limit
 # at 1 — two real, independently-justified pieces of this same repo
-# colliding. 500m is comfortably inside that cap and plenty for a lab
-# sidecar (verified via helm template that this override actually
+# colliding (verified via helm template that this override actually
 # reaches the sidecar injection ConfigMap, not just istiod's own
 # Deployment).
+#
+# 100m, not the originally-tried 500m: every pod in online-boutique
+# gets a sidecar (~16 of them once frontend/productcatalogservice/
+# redis-cart/loadgenerator's replicas are counted), and Module 15's
+# OTHER guardrail — online-boutique-quota's limits.cpu: 8 total for the
+# whole namespace — doesn't scale with sidecar count the way the
+# per-container LimitRange does. Found live: cartservice got stuck
+# FailedCreate ("exceeded quota ... limited: limits.cpu=8") with the
+# namespace already at 7700m/8000m used from every other service's
+# sidecar alone. 16 pods x 500m is 8000m on sidecars BEFORE counting a
+# single app container — mathematically guaranteed to exhaust the
+# quota regardless of node capacity. 100m x 16 = 1600m, leaving real
+# room for the ~4200m the app containers themselves already need.
 # global.cni.enabled=true is required, not optional, on THIS namespace:
 # Istio's default sidecar injection adds an istio-init container that
 # sets up traffic redirection itself, requiring NET_ADMIN/NET_RAW and
@@ -114,10 +126,10 @@ helm upgrade --install istiod istio/istiod \
   --set pilot.cni.enabled=true \
   --set pilot.resources.limits.cpu=1000m \
   --set pilot.resources.limits.memory=4096Mi \
-  --set global.proxy.resources.requests.cpu=50m \
+  --set global.proxy.resources.requests.cpu=30m \
   --set global.proxy.resources.requests.memory=64Mi \
-  --set global.proxy.resources.limits.cpu=500m \
-  --set global.proxy.resources.limits.memory=256Mi \
+  --set global.proxy.resources.limits.cpu=100m \
+  --set global.proxy.resources.limits.memory=128Mi \
   --wait --timeout 5m
 # istio-cni.resources.limits is required, not cosmetic — the chart sets
 # requests but no limits by default, blocked by the Kyverno
