@@ -80,8 +80,22 @@ log_ok "Istio control plane ready"
 log_info "Labeling online-boutique for sidecar injection..."
 kubectl label namespace online-boutique istio-injection=enabled --overwrite
 
-log_info "Excluding node-exporter (hostNetwork — incompatible with sidecar injection)..."
-kubectl apply -f "${MODULE_DIR}/manifests/node-exporter-no-injection.yaml"
+# Only applies where node-exporter was hand-deployed into online-boutique
+# itself (this module's original assumption). On this cluster it's the
+# one kube-prometheus-stack bundles in the monitoring namespace instead
+# (Module 08) — that namespace was never labeled istio-injection=enabled
+# above, so it was never at risk of injection and there's nothing to
+# exclude. Applying this manifest unconditionally would try to create a
+# SECOND, redundant node-exporter DaemonSet inside online-boutique,
+# which would also very likely be rejected outright: that namespace's
+# restricted PodSecurity standard (Module 06) forbids hostNetwork/
+# hostPID unconditionally, seccompProfile or not.
+if kubectl get daemonset node-exporter -n online-boutique &>/dev/null; then
+  log_info "Excluding node-exporter (hostNetwork — incompatible with sidecar injection)..."
+  kubectl apply -f "${MODULE_DIR}/manifests/node-exporter-no-injection.yaml"
+else
+  log_info "node-exporter isn't deployed inside online-boutique on this cluster (it runs via kube-prometheus-stack in monitoring instead, never labeled for injection) — nothing to exclude, skipping"
+fi
 
 log_info "Restarting every Deployment/StatefulSet/Rollout in online-boutique to inject sidecars..."
 for dep in currencyservice shippingservice cartservice emailservice paymentservice \

@@ -40,6 +40,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: server
           securityContext:
@@ -84,6 +86,13 @@ spec:
               value: "checkoutservice:5050"
             - name: AD_SERVICE_ADDR
               value: "adservice:9555"
+            # frontend:v0.10.5 panics at startup without this — same gap
+            # already fixed once in Module 12's own copy of this Rollout;
+            # this module's tracing variant is a separate file that was
+            # missing the same fix. See that module's manifest for the
+            # full explanation.
+            - name: SHOPPING_ASSISTANT_SERVICE_ADDR
+              value: "shoppingassistantservice:80"
             - name: ENABLE_PROFILER
               value: "0"
             - name: ENABLE_TRACING
