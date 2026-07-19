@@ -66,13 +66,29 @@ helm upgrade --install istio-base istio/base \
   --version "${ISTIO_VERSION}" --namespace istio-system --set defaultRevision=default \
   --wait --timeout 3m
 # pilot.resources.limits is required, not cosmetic — the chart sets
-# requests by default but no limits, blocked by the Kyverno
+# requests but no limits by default, blocked by the Kyverno
 # require-resource-limits ClusterPolicy (Module 06), same recurring
 # pattern as every other chart install in this repo.
+#
+# global.proxy.resources.limits.cpu is a SEPARATE, also-required fix —
+# found live: every sidecar-injected pod in online-boutique got stuck
+# FailedCreate ("maximum cpu usage per Container is 1, but limit is 2")
+# once Istio started injecting its istio-proxy container. Istio's
+# default sidecar resource limit is 2 CPU cores; Module 15's own
+# LimitRange on this namespace caps any single container's CPU limit
+# at 1 — two real, independently-justified pieces of this same repo
+# colliding. 500m is comfortably inside that cap and plenty for a lab
+# sidecar (verified via helm template that this override actually
+# reaches the sidecar injection ConfigMap, not just istiod's own
+# Deployment).
 helm upgrade --install istiod istio/istiod \
   --version "${ISTIO_VERSION}" --namespace istio-system \
   --set pilot.resources.limits.cpu=1000m \
   --set pilot.resources.limits.memory=4096Mi \
+  --set global.proxy.resources.requests.cpu=50m \
+  --set global.proxy.resources.requests.memory=64Mi \
+  --set global.proxy.resources.limits.cpu=500m \
+  --set global.proxy.resources.limits.memory=256Mi \
   --wait --timeout 5m
 log_ok "Istio control plane ready"
 
