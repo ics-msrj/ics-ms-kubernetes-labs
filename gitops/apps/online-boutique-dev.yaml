@@ -14,8 +14,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: __GITOPS_REPO_URL__
-    targetRevision: __GITOPS_REPO_REVISION__
+    repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+    targetRevision: main
     path: kustomize/overlays/dev
   destination:
     server: https://kubernetes.default.svc
