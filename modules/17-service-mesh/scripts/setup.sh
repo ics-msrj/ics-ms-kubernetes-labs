@@ -81,8 +81,21 @@ helm upgrade --install istio-base istio/base \
 # sidecar (verified via helm template that this override actually
 # reaches the sidecar injection ConfigMap, not just istiod's own
 # Deployment).
+# global.cni.enabled=true is required, not optional, on THIS namespace:
+# Istio's default sidecar injection adds an istio-init container that
+# sets up traffic redirection itself, requiring NET_ADMIN/NET_RAW and
+# runAsUser=0 — found live, every sidecar-injected pod in
+# online-boutique was rejected outright ("violates PodSecurity
+# restricted:latest... istio-init must not include NET_ADMIN/NET_RAW").
+# CNI mode moves that same iptables setup to a node-level DaemonSet
+# (istio-cni, installed below) instead of a privileged per-pod
+# container, which is compatible with a restricted namespace — this is
+# Istio's own standard, widely-used answer to running sidecars under
+# restricted PodSecurity (the same mechanism every OpenShift Istio
+# install relies on), not a workaround improvised for this lab.
 helm upgrade --install istiod istio/istiod \
   --version "${ISTIO_VERSION}" --namespace istio-system \
+  --set global.cni.enabled=true \
   --set pilot.resources.limits.cpu=1000m \
   --set pilot.resources.limits.memory=4096Mi \
   --set global.proxy.resources.requests.cpu=50m \
@@ -90,7 +103,16 @@ helm upgrade --install istiod istio/istiod \
   --set global.proxy.resources.limits.cpu=500m \
   --set global.proxy.resources.limits.memory=256Mi \
   --wait --timeout 5m
-log_ok "Istio control plane ready"
+# istio-cni.resources.limits is required, not cosmetic — the chart sets
+# requests but no limits by default, blocked by the Kyverno
+# require-resource-limits ClusterPolicy the same way every other chart
+# install in this repo has been.
+helm upgrade --install istio-cni istio/cni \
+  --version "${ISTIO_VERSION}" --namespace istio-system \
+  --set resources.limits.cpu=200m \
+  --set resources.limits.memory=256Mi \
+  --wait --timeout 3m
+log_ok "Istio control plane ready (CNI-based sidecar injection, no per-pod NET_ADMIN)"
 
 # --- Step 2: enable injection, restart every workload ---
 log_info "Labeling online-boutique for sidecar injection..."
