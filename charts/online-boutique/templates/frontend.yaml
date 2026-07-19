@@ -13,6 +13,7 @@ metadata:
     app: frontend
     {{- include "online-boutique.labels" . | nindent 4 }}
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: frontend
