@@ -213,12 +213,23 @@ yq eval ".spec.rules[0].verifyImages[0].attestors[0].entries[0].keys.publicKeys 
 kubectl apply -f "${GENERATED_DIR}/policy.yaml"
 
 log_info "Waiting for the policy to become ready..."
+# Kyverno 3.x reports readiness via status.conditions[type=Ready], not the
+# older status.ready boolean this loop originally checked — same fix
+# already applied in Module 06's scripts, found live here the same way:
+# status.ready never became "true" even once the policy genuinely was
+# ready (status.conditions showed Ready/True the whole time). Also:
+# `VAR=$(kubectl ...)` is NOT exempt from set -e the way `cmd && break`
+# is — a single transient kubectl failure here previously killed the
+# whole script silently, mid-loop, with no error message at all
+# (confirmed live). `|| true` makes a transient failure degrade to an
+# empty READY value for that one iteration instead of exiting.
 for i in $(seq 1 20); do
-  READY=$(kubectl get clusterpolicy verify-signed-images-supply-chain-demo -o jsonpath='{.status.ready}' 2>/dev/null)
-  [[ "$READY" == "true" ]] && break
+  READY=$(kubectl get clusterpolicy verify-signed-images-supply-chain-demo -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
+  [[ -z "$READY" ]] && READY=$(kubectl get clusterpolicy verify-signed-images-supply-chain-demo -o jsonpath='{.status.ready}' 2>/dev/null || true)
+  [[ "$READY" == "True" || "$READY" == "true" ]] && break
   sleep 3
 done
-[[ "$READY" == "true" ]] \
+[[ "$READY" == "True" || "$READY" == "true" ]] \
   && log_ok "Policy ready" \
   || log_warn "Policy not ready yet — check: kubectl get clusterpolicy verify-signed-images-supply-chain-demo -o yaml"
 
