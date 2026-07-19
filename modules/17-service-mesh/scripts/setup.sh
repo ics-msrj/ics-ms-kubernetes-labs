@@ -97,9 +97,21 @@ helm upgrade --install istio-base istio/base \
 # Istio's own standard, widely-used answer to running sidecars under
 # restricted PodSecurity (the same mechanism every OpenShift Istio
 # install relies on), not a workaround improvised for this lab.
+#
+# pilot.cni.enabled=true is a SEPARATE flag from global.cni.enabled,
+# found live: the sidecar injection ConfigMap's actual Go-template only
+# gates the istio-init/istio-validation choice on
+# .Values.pilot.cni.enabled — global.cni.enabled alone updated the
+# ConfigMap's values blob correctly but never reached this specific
+# check, so pods kept getting the privileged istio-init container
+# regardless. Confirmed by reading the ConfigMap's own template source
+# directly (not by guessing further flag names), and confirmed live
+# afterward: a pod created post-upgrade got istio-validation +
+# istio-proxy, no PodSecurity rejection.
 helm upgrade --install istiod istio/istiod \
   --version "${ISTIO_VERSION}" --namespace istio-system \
   --set global.cni.enabled=true \
+  --set pilot.cni.enabled=true \
   --set pilot.resources.limits.cpu=1000m \
   --set pilot.resources.limits.memory=4096Mi \
   --set global.proxy.resources.requests.cpu=50m \
