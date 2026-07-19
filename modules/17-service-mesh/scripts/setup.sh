@@ -50,6 +50,10 @@ if ! kubectl get storageclass "${TEMPO_STORAGE_CLASS}" &>/dev/null; then
   echo -e "${RED}[ERROR]${NC} StorageClass ${TEMPO_STORAGE_CLASS} not found. Complete Module 05 first, or set TEMPO_STORAGE_CLASS to an existing one." >&2
   exit 1
 fi
+if ! command -v yq &>/dev/null; then
+  echo -e "${RED}[ERROR]${NC} yq not found. Complete Module 00 first." >&2
+  exit 1
+fi
 
 echo ""
 echo "============================================================"
@@ -107,11 +111,28 @@ helm upgrade --install istiod istio/istiod \
 # requests but no limits by default, blocked by the Kyverno
 # require-resource-limits ClusterPolicy the same way every other chart
 # install in this repo has been.
-helm upgrade --install istio-cni istio/cni \
+#
+# GKE-specific real bug, found live: the chart hardcodes
+# priorityClassName: system-node-critical on the DaemonSet — not
+# exposed as a values override at all (confirmed via `helm show
+# values` and the rendered template) — and GKE reserves that priority
+# class for its own managed namespaces, rejecting the DaemonSet's pods
+# outright with "insufficient quota to match these scopes:
+# [{PriorityClass In [system-node-critical system-cluster-critical]}]"
+# on every single create attempt. helm install/upgrade has no way to
+# patch a field the chart itself doesn't expose, so this renders the
+# chart directly and strips that one field before applying — same
+# scratch-patch discipline as this repo's other yq-based overrides,
+# just via `helm template | yq | kubectl apply` instead of `--set`
+# since there's no values path here to set.
+helm uninstall istio-cni -n istio-system &>/dev/null || true
+helm template istio-cni istio/cni \
   --version "${ISTIO_VERSION}" --namespace istio-system \
   --set resources.limits.cpu=200m \
   --set resources.limits.memory=256Mi \
-  --wait --timeout 3m
+  | yq eval 'del(.spec.template.spec.priorityClassName)' - \
+  | kubectl apply -f -
+kubectl rollout status daemonset/istio-cni-node -n istio-system --timeout=180s
 log_ok "Istio control plane ready (CNI-based sidecar injection, no per-pod NET_ADMIN)"
 
 # --- Step 2: enable injection, restart every workload ---
