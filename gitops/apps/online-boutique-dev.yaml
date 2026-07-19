@@ -2,20 +2,27 @@
 # kustomization.yaml at this path). Adopts the same online-boutique-dev
 # namespace Module 10's setup.sh applied by hand.
 #
-# Same redis-cart-credentials caveat as online-boutique-packaged.yaml — see
-# that file's comment. automated sync is OFF here too until a verified
-# fix lands; do not re-enable without updating that comment.
+# Same redis-cart-credentials fix as online-boutique-packaged.yaml — see
+# that file's comment for the full history. This Kustomize source has no
+# helm-parameters equivalent to skip the templated Secret, so instead a
+# kustomize patch with `$patch: delete` removes that one rendered
+# resource from this source's output entirely; the second source below
+# applies a SealedSecret in its place.
 #
-# kustomize.patches below is this Kustomize source's equivalent of that
-# file's helm.parameters — the committed kustomize/base kustomization.yaml
-# inflates the chart with its plain defaults (storageClassName: longhorn,
-# no nodeSelector), same as Module 10's setup.sh applies live via a
-# scratch-copy valuesInline injection that's deliberately never committed
-# (kustomize/base stays platform-neutral for other native learners). This
-# real GKE deployment needs the same override ArgoCD-side: standard-rwo
-# StorageClass and the workload-pool nodeSelector, on every Deployment and
-# the redis-cart StatefulSet the overlay produces. Target omits `name` on
-# purpose — it's a kind-wide match, not one resource.
+# The other kustomize.patches entries are this source's equivalent of
+# online-boutique-packaged.yaml's helm.parameters — the committed
+# kustomize/base kustomization.yaml inflates the chart with its plain
+# defaults (storageClassName: longhorn, no nodeSelector), same as Module
+# 10's setup.sh applies live via a scratch-copy valuesInline injection
+# that's deliberately never committed (kustomize/base stays
+# platform-neutral for other native learners). This real GKE deployment
+# needs the same override ArgoCD-side: standard-rwo StorageClass and the
+# workload-pool nodeSelector, on every Deployment and the redis-cart
+# StatefulSet the overlay produces. Target omits `name` on purpose —
+# it's a kind-wide match, not one resource.
+#
+# automated sync stays OFF until one manual sync has been verified not
+# to touch the password — re-enable only after confirming that.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -23,29 +30,41 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
-    targetRevision: main
-    path: kustomize/overlays/dev
-    kustomize:
-      patches:
-        - target:
-            kind: Deployment
-          patch: |-
-            - op: add
-              path: /spec/template/spec/nodeSelector
-              value:
-                workload: autoscale
-        - target:
-            kind: StatefulSet
-          patch: |-
-            - op: add
-              path: /spec/template/spec/nodeSelector
-              value:
-                workload: autoscale
-            - op: replace
-              path: /spec/volumeClaimTemplates/0/spec/storageClassName
-              value: standard-rwo
+  sources:
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
+      path: kustomize/overlays/dev
+      kustomize:
+        patches:
+          - target:
+              kind: Secret
+              name: redis-cart-credentials
+            patch: |-
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: redis-cart-credentials
+              $patch: delete
+          - target:
+              kind: Deployment
+            patch: |-
+              - op: add
+                path: /spec/template/spec/nodeSelector
+                value:
+                  workload: autoscale
+          - target:
+              kind: StatefulSet
+            patch: |-
+              - op: add
+                path: /spec/template/spec/nodeSelector
+                value:
+                  workload: autoscale
+              - op: replace
+                path: /spec/volumeClaimTemplates/0/spec/storageClassName
+                value: standard-rwo
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
+      path: gitops/sealed-secrets/online-boutique-dev
   destination:
     server: https://kubernetes.default.svc
     namespace: online-boutique-dev

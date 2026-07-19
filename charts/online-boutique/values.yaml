@@ -171,6 +171,9 @@ redisCart:
   storageClassName: longhorn
   storageSize: 1Gi
   password: "changeme-override-at-install"
+  # false skips the templated Secret entirely — see templates/redis-cart.yaml
+  # for why (GitOps/SealedSecret consumers only, e.g. Module 11).
+  createSecret: true
   resources:
     requests: {cpu: 70m, memory: 200Mi}
     limits: {cpu: 125m, memory: 256Mi}

@@ -4,28 +4,24 @@
 # release name, same namespace. From here on, ArgoCD reconciles it instead
 # of anyone running `helm upgrade` by hand.
 #
-# redis-cart-credentials is UNPROTECTED right now — two things already
-# tried and confirmed NOT to work on a real cluster: ignoreDifferences
-# (+RespectIgnoreDifferences=true) only suppresses the OutOfSync
-# status/diff view, and the argocd.argoproj.io/sync-options: Ignore
-# annotation on the Secret itself (charts/online-boutique/templates/
-# redis-cart.yaml) ALSO did not stop argocd-controller from applying the
-# chart's "changeme-override-at-install" placeholder over the real
-# password — three real overwrites total. automated sync is therefore
-# OFF here (manual sync only) until a verified fix lands — do not
-# re-enable automated/selfHeal until this comment is updated to say so.
-# The real fix is almost certainly Module 03's own answer to this exact
-# tension: stop sourcing the password from a Helm value at all, source
-# it from a SealedSecret ArgoCD can sync freely because it's already
-# encrypted ciphertext, decrypted cluster-side by the sealed-secrets
-# controller — not a value ArgoCD's own sync loop ever sees in plaintext
-# to overwrite.
+# redis-cart-credentials: after THREE confirmed live overwrites via
+# ignoreDifferences, RespectIgnoreDifferences=true, and the
+# sync-options: Ignore annotation — none of which actually stopped
+# argocd-controller from applying the chart's placeholder over the real
+# password — this Application no longer sources the password from a
+# Helm value at all. redisCart.createSecret=false skips that template
+# entirely; the second source below applies a SealedSecret instead
+# (Module 03's pattern). ArgoCD only ever syncs the encrypted
+# ciphertext, so there's nothing plaintext for it to overwrite.
 #
 # helm.parameters below are this specific real deployment's own overrides
 # (GKE: standard-rwo StorageClass, workload-pool nodeSelector) — matching
 # what Module 10's setup.sh applied by hand via REDIS_STORAGE_CLASS/
 # WORKLOAD_NODE_SELECTOR_KEY/_VALUE. A different target platform (native
 # kubeadm, AKS) needs different values here or none at all.
+#
+# automated sync stays OFF until one manual sync has been verified not
+# to touch the password — re-enable only after confirming that.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -33,17 +29,22 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
-    targetRevision: main
-    path: charts/online-boutique
-    helm:
-      releaseName: online-boutique
-      parameters:
-        - name: redisCart.storageClassName
-          value: standard-rwo
-        - name: nodeSelector.workload
-          value: autoscale
+  sources:
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
+      path: charts/online-boutique
+      helm:
+        releaseName: online-boutique
+        parameters:
+          - name: redisCart.storageClassName
+            value: standard-rwo
+          - name: nodeSelector.workload
+            value: autoscale
+          - name: redisCart.createSecret
+            value: "false"
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
+      path: gitops/sealed-secrets/online-boutique-packaged
   destination:
     server: https://kubernetes.default.svc
     namespace: online-boutique-packaged
