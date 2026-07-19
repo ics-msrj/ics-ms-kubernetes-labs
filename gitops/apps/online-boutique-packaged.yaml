@@ -12,6 +12,21 @@
 # with Sealed Secrets — a fully GitOps-native version of this Application
 # would source the password from a SealedSecret committed alongside it
 # instead of a Helm value at all.
+#
+# RespectIgnoreDifferences=true is required, not optional — confirmed live:
+# without it, ignoreDifferences only suppresses the OutOfSync status/diff
+# view, the actual sync/apply still overwrites the ignored field with
+# Git's value on the very first sync (redis-cart-credentials got the
+# chart's "changeme-override-at-install" placeholder within a minute of
+# this Application first syncing). This is a real bug in this repo's own
+# GitOps setup, not platform-specific — any Module 11 run following the
+# native instructions as documented, on any platform, hits it.
+#
+# helm.parameters below are this specific real deployment's own overrides
+# (GKE: standard-rwo StorageClass, workload-pool nodeSelector) — matching
+# what Module 10's setup.sh applied by hand via REDIS_STORAGE_CLASS/
+# WORKLOAD_NODE_SELECTOR_KEY/_VALUE. A different target platform (native
+# kubeadm, AKS) needs different values here or none at all.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,6 +40,11 @@ spec:
     path: charts/online-boutique
     helm:
       releaseName: online-boutique
+      parameters:
+        - name: redisCart.storageClassName
+          value: standard-rwo
+        - name: nodeSelector.workload
+          value: autoscale
   destination:
     server: https://kubernetes.default.svc
     namespace: online-boutique-packaged
@@ -34,6 +54,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
     - group: ""
       kind: Secret

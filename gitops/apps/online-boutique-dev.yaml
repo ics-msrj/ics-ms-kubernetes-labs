@@ -1,11 +1,21 @@
 # Child Application #2 — Kustomize source (auto-detected from the
-# kustomization.yaml at this path; no source.kustomize block needed since
-# this Application doesn't customize anything beyond what Module 10's
-# overlay already defines). Adopts the same online-boutique-dev namespace
-# Module 10's setup.sh applied by hand.
+# kustomization.yaml at this path). Adopts the same online-boutique-dev
+# namespace Module 10's setup.sh applied by hand.
 #
 # Same redis-cart-credentials caveat as online-boutique-packaged.yaml — see
-# that file's comment for why ignoreDifferences is deliberate here too.
+# that file's comment for why ignoreDifferences + RespectIgnoreDifferences
+# are both required here too.
+#
+# kustomize.patches below is this Kustomize source's equivalent of that
+# file's helm.parameters — the committed kustomize/base kustomization.yaml
+# inflates the chart with its plain defaults (storageClassName: longhorn,
+# no nodeSelector), same as Module 10's setup.sh applies live via a
+# scratch-copy valuesInline injection that's deliberately never committed
+# (kustomize/base stays platform-neutral for other native learners). This
+# real GKE deployment needs the same override ArgoCD-side: standard-rwo
+# StorageClass and the workload-pool nodeSelector, on every Deployment and
+# the redis-cart StatefulSet the overlay produces. Target omits `name` on
+# purpose — it's a kind-wide match, not one resource.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -17,6 +27,25 @@ spec:
     repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
     targetRevision: main
     path: kustomize/overlays/dev
+    kustomize:
+      patches:
+        - target:
+            kind: Deployment
+          patch: |-
+            - op: add
+              path: /spec/template/spec/nodeSelector
+              value:
+                workload: autoscale
+        - target:
+            kind: StatefulSet
+          patch: |-
+            - op: add
+              path: /spec/template/spec/nodeSelector
+              value:
+                workload: autoscale
+            - op: replace
+              path: /spec/volumeClaimTemplates/0/spec/storageClassName
+              value: standard-rwo
   destination:
     server: https://kubernetes.default.svc
     namespace: online-boutique-dev
@@ -26,6 +55,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
     - group: ""
       kind: Secret
