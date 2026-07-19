@@ -144,6 +144,21 @@ trivy image --format cyclonedx --output "${GENERATED_DIR}/frontend-sbom.json" \
 # --- Step 3: self-hosted registry + test image ---
 log_info "Deploying the self-hosted registry (storageClassName: ${REGISTRY_STORAGE_CLASS})..."
 kubectl create namespace supply-chain-demo --dry-run=client -o yaml | kubectl apply -f -
+# Wipe any previous run's registry storage before redeploying — this
+# registry image doesn't have delete enabled
+# (REGISTRY_STORAGE_DELETE_ENABLED unset), so re-signing test-image on
+# top of a prior run's data doesn't replace its old signature, it
+# ACCUMULATES another layer alongside it (cosign's simple-signing
+# format supports multiple valid signatures per image by design).
+# Found live: Kyverno's verifyImages picked an old run's stale
+# signature (made with an already-discarded keypair) out of that
+# accumulated manifest and failed the key comparison, even though the
+# current run's signature was also genuinely present and valid. Every
+# setup.sh re-run needs a truly empty registry, matching what this
+# module's own header already promises ("nothing here needs to persist
+# across runs").
+kubectl delete deployment registry -n supply-chain-demo --ignore-not-found=true --wait=true &>/dev/null
+kubectl delete pvc registry-data -n supply-chain-demo --ignore-not-found=true --wait=true &>/dev/null
 # Scratch-copy substitution, not an edit to the committed manifest — same
 # non-destructive pattern Module 10's setup.sh uses for its own
 # storage-class override: registry.yaml's committed default (longhorn)
