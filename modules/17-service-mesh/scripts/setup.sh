@@ -271,11 +271,17 @@ kubectl apply -f "${MODULE_DIR}/manifests/currencyservice-resilience.yaml"
 log_info "Installing Kiali v${KIALI_CHART_VERSION}..."
 helm repo add kiali https://kiali.org/helm-charts &>/dev/null || true
 helm repo update kiali &>/dev/null
+# deployment.resources.limits.cpu is required, not cosmetic — the
+# chart's own default sets requests.cpu/memory and limits.memory but
+# no limits.cpu, blocked by the Kyverno require-resource-limits
+# ClusterPolicy the same way every other chart install in this repo
+# has needed a --set fix for.
 helm upgrade --install kiali-server kiali/kiali-server \
   --version "${KIALI_CHART_VERSION}" \
   --namespace istio-system \
   -f "${MODULE_DIR}/manifests/kiali-values.yaml" \
   --set external_services.prometheus.url="http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090" \
+  --set deployment.resources.limits.cpu=500m \
   --wait --timeout 3m
 log_ok "Kiali ready"
 
