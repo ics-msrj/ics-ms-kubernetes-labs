@@ -26,15 +26,25 @@ echo -e "${BLUE}--- Sidecar injection ---${NC}"
 LABEL=$(kubectl get namespace online-boutique -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null)
 [[ "$LABEL" == "enabled" ]] && check_pass "online-boutique labeled for injection" || check_fail "online-boutique not labeled for injection"
 
-INJECTED=$(kubectl get pods -n online-boutique -l 'app!=node-exporter' -o jsonpath='{range .items[*]}{.spec.containers[*].name}{"\n"}{end}' 2>/dev/null | grep -c "istio-proxy")
-TOTAL_NON_NODE_EXPORTER=$(kubectl get pods -n online-boutique -l 'app!=node-exporter' --no-headers 2>/dev/null | wc -l)
+# Istio 1.30's sidecar is a native Kubernetes sidecar container (an
+# initContainer with restartPolicy: Always, KEP-753) — it lives in
+# .spec.initContainers, not .spec.containers. Checking only containers
+# reported 0/N here every time, live, even though injection was
+# genuinely working (confirmed by inspecting a pod directly: istio-init
+# is absent, istio-proxy is present in initContainers with
+# restartPolicy=Always). Also scoped to Running pods only — a
+# completed CronJob pod (cart-housekeeping) or an old canary revision's
+# pod mid-scale-down during a Rollout are correctly sidecar-less
+# without indicating anything broken.
+INJECTED=$(kubectl get pods -n online-boutique -l 'app!=node-exporter' --field-selector status.phase=Running -o jsonpath='{range .items[*]}{.spec.containers[*].name}{" "}{.spec.initContainers[*].name}{"\n"}{end}' 2>/dev/null | grep -c "istio-proxy")
+TOTAL_NON_NODE_EXPORTER=$(kubectl get pods -n online-boutique -l 'app!=node-exporter' --field-selector status.phase=Running --no-headers 2>/dev/null | wc -l)
 if [[ "$INJECTED" -ge 1 && "$INJECTED" -eq "$TOTAL_NON_NODE_EXPORTER" ]]; then
-  check_pass "All ${INJECTED} non-node-exporter pods have an istio-proxy sidecar"
+  check_pass "All ${INJECTED} running non-node-exporter pods have an istio-proxy sidecar"
 else
-  check_fail "${INJECTED}/${TOTAL_NON_NODE_EXPORTER} pods have a sidecar — check: kubectl get pods -n online-boutique -o wide"
+  check_fail "${INJECTED}/${TOTAL_NON_NODE_EXPORTER} running pods have a sidecar — check: kubectl get pods -n online-boutique -o wide"
 fi
 
-NODE_EXPORTER_SIDECARS=$(kubectl get pods -n online-boutique -l app=node-exporter -o jsonpath='{range .items[*]}{.spec.containers[*].name}{"\n"}{end}' 2>/dev/null | grep -c "istio-proxy")
+NODE_EXPORTER_SIDECARS=$(kubectl get pods -n online-boutique -l app=node-exporter -o jsonpath='{range .items[*]}{.spec.containers[*].name}{" "}{.spec.initContainers[*].name}{"\n"}{end}' 2>/dev/null | grep -c "istio-proxy")
 [[ "$NODE_EXPORTER_SIDECARS" -eq 0 ]] && check_pass "node-exporter correctly excluded from injection" || check_fail "node-exporter unexpectedly has a sidecar"
 
 echo ""
@@ -54,7 +64,13 @@ echo -e "${BLUE}--- Tempo + tracing ---${NC}"
 TEMPO_READY=$(kubectl get statefulset tempo -n monitoring -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
 [[ -n "$TEMPO_READY" && "$TEMPO_READY" != "0" ]] && check_pass "Tempo is ready" || check_fail "Tempo is not ready"
 
-kubectl get configmap grafana-tempo-datasource -n monitoring -l grafana_datasource=1 &>/dev/null \
+# kubectl rejects combining a resource name with -l in one call ("name
+# cannot be provided when a selector is specified") — found live, this
+# check failed with that exact error every time regardless of whether
+# the ConfigMap and its label were actually correct (confirmed
+# separately they were). Fetch by name, then check the label value.
+TEMPO_DS_LABEL=$(kubectl get configmap grafana-tempo-datasource -n monitoring -o jsonpath='{.metadata.labels.grafana_datasource}' 2>/dev/null)
+[[ "$TEMPO_DS_LABEL" == "1" ]] \
   && check_pass "Grafana Tempo datasource ConfigMap exists" || check_fail "Grafana Tempo datasource not found"
 
 TRACE_SEARCH=$(kubectl run tempo-verify-$$ --image=curlimages/curl:8.10.1 --restart=Never --rm -q -i --timeout=30s \
