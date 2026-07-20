@@ -97,6 +97,14 @@ helm upgrade --install istio-base istio/base \
 # single app container — mathematically guaranteed to exhaust the
 # quota regardless of node capacity. 100m x 16 = 1600m, leaving real
 # room for the ~4200m the app containers themselves already need.
+#
+# requests.cpu=50m, not 30m: Module 15's online-boutique-limits
+# LimitRange also sets a MINIMUM cpu request per container (50m) —
+# found live, every sidecar-injected pod got stuck FailedCreate
+# ("minimum cpu usage per Container is 50m, but request is 30m") once
+# the 100m-limit fix above was applied with a 30m request alongside
+# it. A third collision with Module 15's guardrails, same class as the
+# other two above.
 # global.cni.enabled=true is required, not optional, on THIS namespace:
 # Istio's default sidecar injection adds an istio-init container that
 # sets up traffic redirection itself, requiring NET_ADMIN/NET_RAW and
@@ -126,7 +134,7 @@ helm upgrade --install istiod istio/istiod \
   --set pilot.cni.enabled=true \
   --set pilot.resources.limits.cpu=1000m \
   --set pilot.resources.limits.memory=4096Mi \
-  --set global.proxy.resources.requests.cpu=30m \
+  --set global.proxy.resources.requests.cpu=50m \
   --set global.proxy.resources.requests.memory=64Mi \
   --set global.proxy.resources.limits.cpu=100m \
   --set global.proxy.resources.limits.memory=128Mi \
