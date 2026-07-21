@@ -16,12 +16,13 @@ case "${1:-}" in
   enable-observability) exec "${SCRIPT_DIR}/enable-observability.sh" ;;
   enable-logging) exec "${SCRIPT_DIR}/enable-logging.sh" ;;
   enable-packages) exec "${SCRIPT_DIR}/enable-packages.sh" ;;
+  enable-cf-tunnel) exec "${SCRIPT_DIR}/enable-cf-tunnel.sh" ;;
   autoscaling-sim) shift; exec "${SCRIPT_DIR}/autoscaling-sim/ack-autoscaling-sim.sh" "$@" ;;
   verify) exec "${SCRIPT_DIR}/verify.sh" ;;
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|autoscaling-sim|verify|destroy> [simulation-action]
+Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
 
 Run check-prerequisites, obtain a temporary kubeconfig through the ACK
 console, then run connect and preflight. The ACK parity path covers Modules
