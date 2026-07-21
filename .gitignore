@@ -78,5 +78,6 @@ platforms/aks/config/aks.env
 platforms/gke/config/gke.env
 platforms/ack/config/ack.env
 platforms/ack/config/autoscale-sim.env
+platforms/ack/generated/
 platforms/ack/artifacts/autoscale-sim/*
 !platforms/ack/artifacts/autoscale-sim/.gitkeep

@@ -11,10 +11,11 @@ components directly.
 
 ## Status
 
-Foundation plus Modules 02, 05, and 07 adapters are implemented but not yet
-validated against a live ACK cluster. Run each stage below in order and record
-provider-specific fixes before adding networking, observability, backup,
-service-mesh, or chaos adapters.
+Foundation plus Modules 02, 03, 04, 05, 06, 07, 08, 09, and 10 now have ACK
+entrypoints. Foundation, Modules 02, 05, 06, and 07 have been verified on the
+live ACK cluster. Modules 03, 04, 08, 09, and 10 are implemented parity paths
+and must be validated in this order on the target cluster; do not describe
+them as provider-verified until their own module verification passes.
 
 ## Foundation
 
@@ -55,7 +56,7 @@ bash platforms/ack/scripts/ack-track.sh preflight
 short-lived kubeconfig from the ACK console, set `KUBECONFIG` locally, and
 select the expected context before running it.
 
-## First Validated Path
+## Deployment Order
 
 The Terraform foundation installs the ACK-managed
 `ack-vertical-pod-autoscaler` add-on. Confirm its API is ready, then continue:
@@ -63,13 +64,24 @@ The Terraform foundation installs the ACK-managed
 ```bash
 bash platforms/ack/scripts/ack-track.sh enable-managed-addons
 bash platforms/ack/scripts/ack-track.sh deploy-core-workloads
+bash platforms/ack/scripts/ack-track.sh enable-secrets
+# Module 04 requires the ALB Ingress Controller v2.17+ and two ALB-capable
+# vSwitches in different zones. Install the ACK add-on first; this creates
+# GatewayClass `alb`.
+bash platforms/ack/scripts/ack-track.sh enable-networking
 bash platforms/ack/scripts/ack-track.sh enable-storage
 
-# Module 06 is unchanged and should be validated before scaling policy work.
 bash modules/06-security-policy/scripts/setup.sh
 bash platforms/ack/scripts/ack-track.sh enable-scaling
+bash platforms/ack/scripts/ack-track.sh enable-observability
+bash platforms/ack/scripts/ack-track.sh enable-logging
+bash platforms/ack/scripts/ack-track.sh enable-packages
 bash platforms/ack/scripts/ack-track.sh verify
 ```
+
+Run each native module's `verify.sh` after its corresponding ACK entrypoint.
+The ALB Gateway and Grafana listeners create billable ALB resources. Delete
+the Gateway before deleting the cluster or retiring the lab.
 
 The workload pool must be labelled `workload=autoscale` (or the configured
 equivalent). Its minimum should be one node and its maximum should initially
@@ -120,12 +132,15 @@ its own delay and billing continues until added nodes are released.
 | 00 | Adapt: `check-prerequisites.sh` adds `aliyun`. |
 | 01 | Replace: ACK Managed Pro, Terway, CSI, and node pools. |
 | 02 | Adapt: ACK disk CSI replaces `local-path`. |
-| 03 | Pending: validate Sealed Secrets and ACK StorageClass substitution. |
-| 04 | Pending: use ACK ALB Gateway API, not Cilium Gateway. |
+| 03 | Adapt: Sealed Secrets with ACK CSI StorageClass substitution. |
+| 04 | Adapt: ACK ALB Gateway API (`GatewayClass alb`), not Cilium Gateway. |
 | 05 | Replace: ACK CSI VolumeSnapshots replace Longhorn. |
 | 06 | Candidate native module; validate after Module 02. |
 | 07 | Adapt: ACK VPA plus ACK node-pool autoscaling; KEDA remains pending live validation. |
-| 08-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
+| 08 | Adapt: kube-prometheus-stack with managed-node exporter and ALB Gateway listener. |
+| 09 | Adapt: native Loki/Alloy with ACK CSI StorageClass. |
+| 10 | Adapt: native Helm/Kustomize with ACK CSI and workload-pool selector. |
+| 11-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
 | 18 | Adapt: isolated ACK VPA-first capacity simulation; other chaos experiments remain pending. |
 | 99 | Candidate native module once prerequisite adapters are proven. |
 

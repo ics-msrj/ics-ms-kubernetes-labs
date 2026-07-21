@@ -9,20 +9,25 @@ case "${1:-}" in
   preflight) exec "${SCRIPT_DIR}/preflight.sh" ;;
   enable-managed-addons) exec "${SCRIPT_DIR}/enable-managed-addons.sh" ;;
   deploy-core-workloads) exec "${SCRIPT_DIR}/deploy-core-workloads.sh" ;;
+  enable-secrets) exec "${SCRIPT_DIR}/enable-secrets.sh" ;;
+  enable-networking) exec "${SCRIPT_DIR}/enable-networking.sh" ;;
   enable-storage) exec "${SCRIPT_DIR}/enable-storage.sh" ;;
   enable-scaling) exec "${SCRIPT_DIR}/enable-scaling.sh" ;;
+  enable-observability) exec "${SCRIPT_DIR}/enable-observability.sh" ;;
+  enable-logging) exec "${SCRIPT_DIR}/enable-logging.sh" ;;
+  enable-packages) exec "${SCRIPT_DIR}/enable-packages.sh" ;;
   autoscaling-sim) shift; exec "${SCRIPT_DIR}/autoscaling-sim/ack-autoscaling-sim.sh" "$@" ;;
   verify) exec "${SCRIPT_DIR}/verify.sh" ;;
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-storage|enable-scaling|autoscaling-sim|verify|destroy> [simulation-action]
+Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|autoscaling-sim|verify|destroy> [simulation-action]
 
 Run check-prerequisites, obtain a temporary kubeconfig through the ACK
-console, then run connect and preflight. enable-managed-addons validates the
-console-managed VPA prerequisite. The initial implementation covers Modules
-02, 05, and 07 only. autoscaling-sim is an isolated VPA-first capacity
-simulation; later adapters require live ACK validation first.
+console, then run connect and preflight. The ACK parity path covers Modules
+02 through 10 where an entrypoint exists. enable-networking requires the
+console-managed ALB Ingress Controller v2.17+ and GatewayClass `alb`.
+autoscaling-sim is isolated from the curriculum deployment path.
 EOF
     exit 1
     ;;
