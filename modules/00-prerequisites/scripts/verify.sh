@@ -40,7 +40,7 @@ echo "== Module 00 — Prerequisites verification =="
 echo
 
 echo "Required tools:"
-check_version kubectl   1.28.0 "$(kubectl version --client -o json 2>/dev/null | grep -o '"gitVersion":"v[0-9.]*"' | head -1 | grep -o '[0-9][0-9.]*')"
+check_version kubectl   1.28.0 "$(kubectl version --client -o json 2>/dev/null | jq -r '.clientVersion.gitVersion // empty' | sed 's/^v//')"
 check_version helm      3.14.0 "$(helm version --short 2>/dev/null | grep -o 'v[0-9][0-9.]*' | head -1 | tr -d v)"
 check_version kustomize 5.0.0  "$(kustomize version 2>/dev/null | grep -o 'v[0-9][0-9.]*' | head -1 | tr -d v)"
 check_version git       2.30.0 "$(git --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1)"
