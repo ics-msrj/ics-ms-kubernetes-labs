@@ -6,6 +6,11 @@ Resource Group, KMS key, and key-pair IDs; it never creates or changes shared
 networking. Pod vSwitches must not be the same as node or control-plane
 vSwitches, and must be in matching zones for Terway.
 
+It creates an ACK-managed NAT Gateway when `create_nat_gateway=true`; this is
+required when the existing VPC has no outbound NAT/SNAT path. It can also create
+an Internet-facing API-server SLB for local `kubectl`; immediately restrict its
+listener with an ACK API-server network ACL after cluster creation.
+
 The cluster has no default workers. `systempool` is fixed at two pay-as-you-go
 nodes. `workloadpool` is labelled `workload=autoscale` and scales from one to
 four pay-as-you-go nodes. Terway shared ENI networking is selected and the API

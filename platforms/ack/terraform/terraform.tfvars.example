@@ -6,6 +6,12 @@ cluster_name     = "ack-nextops-production-jkt-001"
 # cluster creation. Pin it only after querying an exact supported ACK version.
 cluster_spec = "ack.pro.small"
 
+# Existing VPC has no NAT Gateway. ACK must create one so nodes and Pods can
+# pull images. The public API endpoint is required for local kubectl access;
+# restrict its listener to the administrator CIDR immediately after creation.
+create_nat_gateway       = true
+api_server_public_access = true
+
 # Existing Resource Group, VPC, vSwitches, key pair, and KMS key only.
 # This module never creates or changes the shared network.
 resource_group_id          = "rg-replace-me"

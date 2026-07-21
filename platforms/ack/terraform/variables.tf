@@ -25,6 +25,18 @@ variable "cluster_spec" {
   default = "ack.pro.small"
 }
 
+variable "create_nat_gateway" {
+  type        = bool
+  default     = true
+  description = "Create the ACK-managed NAT Gateway required for outbound node and Pod connectivity."
+}
+
+variable "api_server_public_access" {
+  type        = bool
+  default     = true
+  description = "Expose the API server through an Internet-facing SLB for temporary local kubeconfig access."
+}
+
 variable "environment" {
   type    = string
   default = "lab"

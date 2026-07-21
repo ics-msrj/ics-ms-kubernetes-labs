@@ -22,9 +22,9 @@ resource "alicloud_cs_managed_kubernetes" "this" {
   resource_group_id = var.resource_group_id
   vswitch_ids       = var.control_plane_vswitch_ids
   pod_vswitch_ids   = var.pod_vswitch_ids
-  new_nat_gateway   = false
+  new_nat_gateway   = var.create_nat_gateway
 
-  slb_internet_enabled    = false
+  slb_internet_enabled    = var.api_server_public_access
   deletion_protection     = true
   encryption_provider_key = var.encryption_provider_key_id
 
