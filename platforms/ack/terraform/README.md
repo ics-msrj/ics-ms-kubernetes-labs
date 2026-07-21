@@ -9,7 +9,12 @@ vSwitches, and must be in matching zones for Terway.
 It creates an ACK-managed NAT Gateway when `create_nat_gateway=true`; this is
 required when the existing VPC has no outbound NAT/SNAT path. It can also create
 an Internet-facing API-server SLB for local `kubectl`; immediately restrict its
-listener with an ACK API-server network ACL after cluster creation.
+listener with an ACK API-server network ACL after cluster creation. Use a
+whitelist containing the administrator's current public `/32`,
+`100.104.0.0/16` for ACK management, and the node-vSwitch CIDR. Configure it
+from **ACK Console -> Cluster Information -> Basic Information -> Network ->
+Set access control**. Omitting the ACK or node CIDR can break console and node
+connectivity.
 
 Before the first apply, activate Container Service for Kubernetes in the
 Alibaba Cloud console and complete ACK Quick Authorization, including
