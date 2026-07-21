@@ -4,6 +4,15 @@ variable "resource_group_id" { type = string }
 variable "control_plane_vswitch_ids" { type = list(string) }
 variable "node_vswitch_ids" { type = list(string) }
 variable "pod_vswitch_ids" { type = list(string) }
+variable "service_cidr" {
+  type        = string
+  description = "Immutable IPv4 CIDR used for Kubernetes Services; it must not overlap the VPC or another cluster CIDR."
+
+  validation {
+    condition     = can(cidrnetmask(var.service_cidr))
+    error_message = "service_cidr must be a valid IPv4 CIDR block."
+  }
+}
 variable "key_name" { type = string }
 variable "encryption_provider_key_id" { type = string }
 variable "system_instance_types" { type = list(string) }

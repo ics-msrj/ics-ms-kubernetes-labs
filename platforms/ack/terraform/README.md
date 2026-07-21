@@ -11,10 +11,15 @@ required when the existing VPC has no outbound NAT/SNAT path. It can also create
 an Internet-facing API-server SLB for local `kubectl`; immediately restrict its
 listener with an ACK API-server network ACL after cluster creation.
 
+Before the first apply, activate Container Service for Kubernetes in the
+Alibaba Cloud console and complete ACK Quick Authorization, including
+`AliyunCSManagedSecurityRole` when using the KMS encryption key. The account
+must also be permitted to create ACK Pro clusters.
+
 The cluster has no default workers. `systempool` is fixed at two pay-as-you-go
 nodes. `workloadpool` is labelled `workload=autoscale` and scales from one to
-four pay-as-you-go nodes. Terway shared ENI networking is selected and the API
-server has no public SLB endpoint.
+four pay-as-you-go nodes. Terway shared ENI networking is selected. The API
+server public endpoint follows `api_server_public_access` in `terraform.tfvars`.
 
 ```bash
 cd platforms/ack/terraform

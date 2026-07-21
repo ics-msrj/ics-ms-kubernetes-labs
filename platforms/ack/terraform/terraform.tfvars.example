@@ -18,6 +18,8 @@ resource_group_id          = "rg-replace-me"
 control_plane_vswitch_ids  = ["vsw-control-plane-replace-me"]
 node_vswitch_ids           = ["vsw-node-replace-me"]
 pod_vswitch_ids            = ["vsw-pod-replace-me"]
+# Immutable and non-overlapping with the VPC and every cluster CIDR in the VPC.
+service_cidr                = "172.21.0.0/20"
 key_name                   = "replace-with-existing-keypair"
 encryption_provider_key_id = "key-replace-me"
 
