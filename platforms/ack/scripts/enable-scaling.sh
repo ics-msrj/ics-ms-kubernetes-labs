@@ -15,7 +15,7 @@ kubectl get namespace online-boutique >/dev/null \
 kubectl top nodes >/dev/null 2>&1 \
   || die "Metrics API is not serving node metrics yet."
 kubectl api-resources | awk '{print $1}' | grep -qx verticalpodautoscalers \
-  || die "VPA API not found. Install ack-vertical-pod-autoscaler from the ACK console first."
+  || die "VPA API not found. Apply the ACK Terraform foundation and wait for the managed VPA add-on to reconcile."
 
 log_info "Scaling cartservice to two replicas for its PodDisruptionBudget..."
 kubectl scale deployment cartservice -n online-boutique --replicas=2
