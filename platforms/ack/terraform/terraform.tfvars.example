@@ -1,0 +1,29 @@
+alicloud_profile = "ali-ics-ms-root"
+region           = "ap-southeast-5"
+cluster_name     = "ack-nextops-production-jkt-001"
+
+# Query supported ACK versions and instance inventory in Jakarta before plan.
+kubernetes_version = "replace-with-supported-ack-version"
+cluster_spec       = "ack.pro.small"
+
+# Existing Resource Group, VPC, vSwitches, key pair, and KMS key only.
+# This module never creates or changes the shared network.
+resource_group_id          = "rg-replace-me"
+control_plane_vswitch_ids  = ["vsw-control-plane-replace-me"]
+node_vswitch_ids           = ["vsw-node-replace-me"]
+pod_vswitch_ids            = ["vsw-pod-replace-me"]
+key_name                   = "replace-with-existing-keypair"
+encryption_provider_key_id = "key-replace-me"
+
+# Use available Jakarta types. The workload pool supports several compatible
+# types to make node autoscaling resilient to temporary inventory shortages.
+system_instance_types   = ["ecs-replace-me"]
+workload_instance_types = ["ecs-replace-me", "ecs-alternative-replace-me"]
+
+system_node_count = 2
+workload_min_size = 1
+workload_max_size = 4
+
+workload_node_labels = {
+  workload = "autoscale"
+}

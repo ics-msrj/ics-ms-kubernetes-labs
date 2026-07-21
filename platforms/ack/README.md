@@ -18,15 +18,25 @@ service-mesh, or chaos adapters.
 
 ## Foundation
 
-Create an **ACK Managed Pro** cluster in the console in `ap-southeast-5`.
-Use Terway in shared ENI mode with NetworkPolicy enabled, CSI storage, a
-fixed system pool, and an autoscaling workload pool. The ALB Gateway API
-adapter will later require two ALB-capable vSwitches.
+Provision an **ACK Managed Pro** cluster in `ap-southeast-5` through
+[`terraform/`](terraform/), not manually in the console. It uses Terway shared
+ENI networking, CSI storage, a fixed system pool, and an autoscaling workload
+pool. The ALB Gateway API adapter will later require two ALB-capable vSwitches.
 
 ```bash
+cd platforms/ack/terraform
+cp terraform.tfvars.example terraform.tfvars
+# Fill existing VPC/vSwitch, Resource Group, KMS, key-pair, version, and type IDs.
+terraform init
+terraform plan -out=tfplan
+# Review the plan, then apply it yourself.
+
+terraform apply tfplan
+terraform output -raw next_steps
+cd ../../..
+
 cp platforms/ack/config/ack.env.example platforms/ack/config/ack.env
-# Fill ACK_PROFILE, ACK_CLUSTER_ID, ACK_CLUSTER_NAME, ACK_STORAGE_CLASS,
-# and the workload node-pool label from the ACK console.
+# Fill ACK_CLUSTER_ID and ACK_STORAGE_CLASS from Terraform outputs/kubectl.
 
 bash platforms/ack/scripts/ack-track.sh check-prerequisites
 bash platforms/ack/scripts/ack-track.sh connect
