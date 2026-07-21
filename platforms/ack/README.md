@@ -23,6 +23,12 @@ Provision an **ACK Managed Pro** cluster in `ap-southeast-5` through
 ENI networking, CSI storage, a fixed system pool, and an autoscaling workload
 pool. The ALB Gateway API adapter will later require two ALB-capable vSwitches.
 
+Before Terraform apply, activate ACK Pro and Auto Scaling for the account. In
+the ACK console, open the cluster's **Nodes -> Node Pools** page and use
+**Enable** next to Node Scaling to authorize
+`AliyunCSManagedAutoScalerRole`. The workload pool uses this role when its
+autoscaling configuration is created.
+
 ```bash
 cd platforms/ack/terraform
 cp terraform.tfvars.example terraform.tfvars

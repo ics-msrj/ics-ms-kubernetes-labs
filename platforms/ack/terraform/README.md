@@ -14,7 +14,10 @@ listener with an ACK API-server network ACL after cluster creation.
 Before the first apply, activate Container Service for Kubernetes in the
 Alibaba Cloud console and complete ACK Quick Authorization, including
 `AliyunCSManagedSecurityRole` when using the KMS encryption key. The account
-must also be permitted to create ACK Pro clusters.
+must also be permitted to create ACK Pro clusters. Because `workloadpool` is
+autoscaled, activate Auto Scaling and authorize
+`AliyunCSManagedAutoScalerRole` from **ACK Console -> Cluster -> Nodes -> Node
+Pools -> Enable** before applying Terraform.
 
 The cluster has no default workers. `systempool` is fixed at two pay-as-you-go
 nodes. `workloadpool` is labelled `workload=autoscale` and scales from one to
