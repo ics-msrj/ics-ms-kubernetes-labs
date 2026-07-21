@@ -78,6 +78,41 @@ resources; it does not use a raw 80% node-CPU threshold. Keep VPA in `Off`
 mode while reviewing recommendations, then use those requests to create the
 pending-Pod condition that drives node-pool scaling.
 
+## Autoscaling Simulation
+
+The ACK capacity simulation is isolated in `ack-autoscale-sim`; it does not
+send traffic to Online Boutique or reuse the AKS-specific GameDay scripts. It
+uses a VPA in `Off` mode, then explicitly requires a reviewed recommendation
+before enabling HPA and either load profile. The target and k6 Job are pinned
+to the ACK workload node pool. A scale-out is expected only when replica
+**requests** cannot fit, not when node utilization reaches an arbitrary
+percentage.
+
+```bash
+cp platforms/ack/config/autoscale-sim.env.example \
+  platforms/ack/config/autoscale-sim.env
+
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim preflight
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim apply
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim baseline
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim vpa-check
+
+# Review the VPA recommendation. Update request values if required, then set
+# ACK_SIM_VPA_REVIEWED="true" in platforms/ack/config/autoscale-sim.env.
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim enable-hpa
+
+# Run this in a second terminal while executing one profile at a time.
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim watch
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim gradual
+bash platforms/ack/scripts/ack-track.sh autoscaling-sim spike
+```
+
+Evidence is written under `platforms/ack/artifacts/autoscale-sim/` and is
+ignored by Git. The gradual profile takes 45 minutes and the spike takes 30
+minutes. Both may scale the workload pool to its maximum and create ECS cost.
+Use `autoscaling-sim cleanup` after collecting evidence; ACK scale-in follows
+its own delay and billing continues until added nodes are released.
+
 ## Module Compatibility
 
 | Module | ACK treatment |
@@ -90,7 +125,8 @@ pending-Pod condition that drives node-pool scaling.
 | 05 | Replace: ACK CSI VolumeSnapshots replace Longhorn. |
 | 06 | Candidate native module; validate after Module 02. |
 | 07 | Adapt: ACK VPA plus ACK node-pool autoscaling; KEDA remains pending live validation. |
-| 08-18 | Pending live validation; do not run provider-sensitive native steps unchanged. |
+| 08-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
+| 18 | Adapt: isolated ACK VPA-first capacity simulation; other chaos experiments remain pending. |
 | 99 | Candidate native module once prerequisite adapters are proven. |
 
 ## Cleanup

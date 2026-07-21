@@ -1,0 +1,25 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: autoscale-target
+  namespace: ack-autoscale-sim
+  labels:
+    app.kubernetes.io/name: autoscale-target
+    app.kubernetes.io/part-of: ack-autoscale-simulation
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: autoscale-target
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: server
+        minAllowed:
+          cpu: 250m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 1500m
+          memory: 512Mi
+        controlledResources: ["cpu", "memory"]
