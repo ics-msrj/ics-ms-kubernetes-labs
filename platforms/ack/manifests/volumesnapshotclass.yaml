@@ -1,0 +1,7 @@
+# ACK CSI disk snapshots are ECS snapshots and are billable while retained.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ack-essd-snapshot
+driver: diskplugin.csi.alibabacloud.com
+deletionPolicy: Delete

@@ -76,3 +76,4 @@ modules/18-chaos-engineering/artifacts/*
 !modules/18-chaos-engineering/artifacts/.gitkeep
 platforms/aks/config/aks.env
 platforms/gke/config/gke.env
+platforms/ack/config/ack.env

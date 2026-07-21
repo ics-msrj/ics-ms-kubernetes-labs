@@ -1,0 +1,16 @@
+# Apply manually after enable-storage.sh to prove a usable restore, then delete.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-cart-restore-test
+  namespace: online-boutique
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: __ACK_STORAGE_CLASS__
+  dataSource:
+    name: redis-cart-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  resources:
+    requests:
+      storage: 1Gi
