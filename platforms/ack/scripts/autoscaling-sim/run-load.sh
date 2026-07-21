@@ -46,6 +46,8 @@ spec:
       labels:
         app.kubernetes.io/name: k6-runner
         app.kubernetes.io/part-of: ack-autoscale-simulation
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
       serviceAccountName: k6-runner
       automountServiceAccountToken: false

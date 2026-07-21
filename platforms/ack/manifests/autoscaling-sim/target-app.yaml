@@ -143,3 +143,17 @@ spec:
     - name: http
       port: 8080
       targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: autoscale-target
+  namespace: ack-autoscale-sim
+  labels:
+    app.kubernetes.io/name: autoscale-target
+    app.kubernetes.io/part-of: ack-autoscale-simulation
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: autoscale-target
