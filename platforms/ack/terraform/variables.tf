@@ -1,6 +1,5 @@
 variable "alicloud_profile" { type = string }
 variable "cluster_name" { type = string }
-variable "kubernetes_version" { type = string }
 variable "resource_group_id" { type = string }
 variable "control_plane_vswitch_ids" { type = list(string) }
 variable "node_vswitch_ids" { type = list(string) }
@@ -13,6 +12,12 @@ variable "workload_instance_types" { type = list(string) }
 variable "region" {
   type    = string
   default = "ap-southeast-5"
+}
+
+variable "kubernetes_version" {
+  type     = string
+  default  = null
+  nullable = true
 }
 
 variable "cluster_spec" {

@@ -2,9 +2,9 @@ alicloud_profile = "ali-ics-ms-root"
 region           = "ap-southeast-5"
 cluster_name     = "ack-nextops-production-jkt-001"
 
-# Query supported ACK versions and instance inventory in Jakarta before plan.
-kubernetes_version = "replace-with-supported-ack-version"
-cluster_spec       = "ack.pro.small"
+# Leave kubernetes_version unset to select ACK's current supported version at
+# cluster creation. Pin it only after querying an exact supported ACK version.
+cluster_spec = "ack.pro.small"
 
 # Existing Resource Group, VPC, vSwitches, key pair, and KMS key only.
 # This module never creates or changes the shared network.
