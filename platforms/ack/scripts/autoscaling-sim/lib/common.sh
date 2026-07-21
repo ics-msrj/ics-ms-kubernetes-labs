@@ -4,8 +4,12 @@ set -euo pipefail
 
 SIM_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM_DIR="$(cd "${SIM_LIB_DIR}/../../.." && pwd)"
+CALLER_SCRIPT_DIR="${SCRIPT_DIR:-}"
 # shellcheck disable=SC1091
 source "${PLATFORM_DIR}/scripts/lib/common.sh"
+# The shared helper sets SCRIPT_DIR for its own location. Restore the caller's
+# directory so sibling simulation scripts can resolve their helper commands.
+SCRIPT_DIR="${CALLER_SCRIPT_DIR}"
 
 SIM_CONFIG_FILE="${ACK_AUTOSCALE_SIM_CONFIG:-${PLATFORM_DIR}/config/autoscale-sim.env}"
 if [[ -f "${SIM_CONFIG_FILE}" ]]; then
