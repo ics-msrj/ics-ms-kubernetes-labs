@@ -22,6 +22,8 @@ Provision an **ACK Managed Pro** cluster in `ap-southeast-5` through
 [`terraform/`](terraform/), not manually in the console. It uses Terway shared
 ENI networking, CSI storage, a fixed system pool, and an autoscaling workload
 pool. The ALB Gateway API adapter will later require two ALB-capable vSwitches.
+The ACK Redis adapter requests a 20 GiB CSI disk because Alibaba Cloud ESSD
+volumes cannot be provisioned below that minimum.
 
 Before Terraform apply, activate ACK Pro and Auto Scaling for the account. In
 the ACK console, open the cluster's **Nodes -> Node Pools** page and use

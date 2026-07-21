@@ -28,7 +28,9 @@ done
 
 log_info "Replacing redis-cart with an ACK CSI-backed StatefulSet..."
 kubectl delete deployment redis-cart -n online-boutique --ignore-not-found=true
-sed "s/storageClassName: local-path/storageClassName: ${ACK_STORAGE_CLASS}/" \
+sed \
+  -e "s/storageClassName: local-path/storageClassName: ${ACK_STORAGE_CLASS}/" \
+  -e "s/storage: 1Gi/storage: ${ACK_REDIS_DISK_SIZE}/" \
   "${module_dir}/manifests/redis-cart-statefulset.yaml" | kubectl apply -n online-boutique -f -
 kubectl patch statefulset redis-cart -n online-boutique --type merge \
   -p "{\"spec\":{\"template\":{\"spec\":{\"nodeSelector\":{\"${ACK_WORKLOAD_LABEL_KEY}\":\"${ACK_WORKLOAD_LABEL_VALUE}\"}}}}}"
