@@ -22,15 +22,32 @@ data:
     const workMs = Number.parseInt(process.env.CPU_WORK_MS || '45', 10);
     const port = Number.parseInt(process.env.PORT || '8080', 10);
 
-    http.createServer((request, response) => {
+    const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+
+    async function cpuWork(durationMs) {
+      const deadline = Date.now() + durationMs;
+      let value = 0;
+
+      // Yield regularly so probes remain an availability signal, not a victim
+      // of the intentional CPU saturation used by the simulation.
+      while (Date.now() < deadline) {
+        const sliceDeadline = Math.min(deadline, Date.now() + 4);
+        while (Date.now() < sliceDeadline) {
+          value = (value + Math.sqrt(value + 1)) % 100000;
+        }
+        await yieldToEventLoop();
+      }
+
+      return value;
+    }
+
+    http.createServer(async (request, response) => {
       if (request.url === '/healthz' || request.url === '/readyz') {
         response.writeHead(200).end('ok\n');
         return;
       }
 
-      const deadline = Date.now() + workMs;
-      let value = 0;
-      while (Date.now() < deadline) value = (value + Math.sqrt(value + 1)) % 100000;
+      const value = await cpuWork(workMs);
       response.writeHead(200, { 'Content-Type': 'application/json' });
       response.end(JSON.stringify({ ok: true, value }));
     }).listen(port, '0.0.0.0');
