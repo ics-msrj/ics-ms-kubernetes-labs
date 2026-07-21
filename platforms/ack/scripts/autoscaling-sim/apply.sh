@@ -17,6 +17,5 @@ kubectl -n "${NAMESPACE}" set resources deployment/autoscale-target --containers
   --requests="cpu=${ACK_SIM_TARGET_CPU_REQUEST},memory=${ACK_SIM_TARGET_MEMORY_REQUEST}" \
   --limits="cpu=${ACK_SIM_TARGET_CPU_LIMIT},memory=${ACK_SIM_TARGET_MEMORY_LIMIT}"
 kubectl -n "${NAMESPACE}" set env deployment/autoscale-target "CPU_WORK_MS=${ACK_SIM_CPU_WORK_MS}"
-kubectl -n "${NAMESPACE}" rollout restart deployment/autoscale-target
 kubectl -n "${NAMESPACE}" rollout status deployment/autoscale-target --timeout=180s
 log_ok "VPA observation target is ready in ${NAMESPACE}; HPA is intentionally disabled."
