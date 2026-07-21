@@ -38,7 +38,8 @@ kubectl get secret redis-cart-credentials -n online-boutique >/dev/null \
 
 # The native manifest hard-codes local-path, which is invalid and immutable
 # after Module 02 has created ACK's CSI-backed StatefulSet.
-sed "s|storageClassName: local-path|storageClassName: ${ACK_STORAGE_CLASS}|" \
+sed -e "s|storageClassName: local-path|storageClassName: ${ACK_STORAGE_CLASS}|" \
+  -e "s|storage: 1Gi|storage: ${ACK_REDIS_DISK_SIZE}|" \
   "${MODULE_DIR}/manifests/redis-cart-statefulset-with-auth.yaml" \
   | kubectl apply -n online-boutique -f -
 kubectl apply -n online-boutique -f "${MODULE_DIR}/manifests/cartservice-with-redis-auth.yaml"
