@@ -94,6 +94,14 @@ resource "alicloud_cs_kubernetes_addon" "vertical_pod_autoscaler" {
   name       = "ack-vertical-pod-autoscaler"
 }
 
+# ACK manages the controller. A subsequent Gateway using GatewayClass `alb`
+# provisions the billable ALB, so installing this add-on alone creates no
+# application-facing load balancer.
+resource "alicloud_cs_kubernetes_addon" "alb_ingress_controller" {
+  cluster_id = alicloud_cs_managed_kubernetes.this.id
+  name       = "alb-ingress-controller"
+}
+
 data "alicloud_cs_cluster_credential" "this" {
   cluster_id                 = alicloud_cs_managed_kubernetes.this.id
   temporary_duration_minutes = 60
