@@ -28,6 +28,8 @@ The cluster has no default workers. `systempool` is fixed at two pay-as-you-go
 nodes. `workloadpool` is labelled `workload=autoscale` and scales from one to
 four pay-as-you-go nodes. Terway shared ENI networking is selected. The API
 server public endpoint follows `api_server_public_access` in `terraform.tfvars`.
+The ACK-managed `ack-vertical-pod-autoscaler` add-on is also installed, so do
+not install upstream VPA manifests alongside it.
 
 ```bash
 cd platforms/ack/terraform

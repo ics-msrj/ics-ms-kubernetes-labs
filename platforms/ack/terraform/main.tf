@@ -87,6 +87,13 @@ resource "alicloud_cs_kubernetes_node_pool" "workload" {
   }
 }
 
+# Keep the ACK-managed VPA implementation under Terraform rather than applying
+# upstream VPA manifests, which are not the supported path for ACK 1.26+.
+resource "alicloud_cs_kubernetes_addon" "vertical_pod_autoscaler" {
+  cluster_id = alicloud_cs_managed_kubernetes.this.id
+  name       = "ack-vertical-pod-autoscaler"
+}
+
 data "alicloud_cs_cluster_credential" "this" {
   cluster_id                 = alicloud_cs_managed_kubernetes.this.id
   temporary_duration_minutes = 60

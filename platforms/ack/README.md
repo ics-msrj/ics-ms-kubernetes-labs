@@ -55,8 +55,8 @@ select the expected context before running it.
 
 ## First Validated Path
 
-Install `ack-vertical-pod-autoscaler` from **ACK Console -> Cluster ->
-Operations -> Add-ons**, then continue:
+The Terraform foundation installs the ACK-managed
+`ack-vertical-pod-autoscaler` add-on. Confirm its API is ready, then continue:
 
 ```bash
 bash platforms/ack/scripts/ack-track.sh enable-managed-addons
