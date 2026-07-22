@@ -27,12 +27,15 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 
 # shellcheck disable=SC1091
 [ -f "${REPO_ROOT}/lab.env" ] && source "${REPO_ROOT}/lab.env"
-APP_DOMAIN="${APP_DOMAIN:-}"
+APP_DOMAIN="${APP_DOMAIN_OVERRIDE:-${APP_DOMAIN:-}}"
 TLS_ISSUER="${TLS_ISSUER:-letsencrypt-staging}"
-GITOPS_REPO_URL="${GITOPS_REPO_URL:-}"
-GITOPS_REPO_REVISION="${GITOPS_REPO_REVISION:-main}"
+GITOPS_REPO_URL="${GITOPS_REPO_URL_OVERRIDE:-${GITOPS_REPO_URL:-}}"
+GITOPS_REPO_REVISION="${GITOPS_REPO_REVISION_OVERRIDE:-${GITOPS_REPO_REVISION:-main}}"
+GITOPS_APPS_PATH="${GITOPS_APPS_PATH:-gitops/apps}"
+GITOPS_COMMIT_PATHS="${GITOPS_COMMIT_PATHS:-${GITOPS_APPS_PATH}}"
+ARGOCD_EXPOSURE="${ARGOCD_EXPOSURE:-gateway}"
 GRAFANA_DOMAIN="grafana.${APP_DOMAIN}"
-ARGOCD_DOMAIN="argocd.${APP_DOMAIN}"
+ARGOCD_DOMAIN="${ARGOCD_DOMAIN_OVERRIDE:-argocd.${APP_DOMAIN}}"
 
 if ! kubectl cluster-info &>/dev/null; then
   echo -e "${RED}[ERROR]${NC} kubectl cannot reach a cluster. Complete Module 01 first." >&2
@@ -46,6 +49,14 @@ if [[ -z "$GITOPS_REPO_URL" || "$GITOPS_REPO_URL" == *"<you>"* ]]; then
   echo -e "${RED}[ERROR]${NC} Set a real GITOPS_REPO_URL in lab.env — see its comment for the expected GitLab (primary) / GitHub (mirror) setup." >&2
   exit 1
 fi
+if [[ ! -d "${REPO_ROOT}/${GITOPS_APPS_PATH}" ]]; then
+  echo -e "${RED}[ERROR]${NC} GitOps application path ${GITOPS_APPS_PATH} does not exist." >&2
+  exit 1
+fi
+if [[ "${ARGOCD_EXPOSURE}" != "gateway" && "${ARGOCD_EXPOSURE}" != "cloudflare-tunnel" ]]; then
+  echo -e "${RED}[ERROR]${NC} ARGOCD_EXPOSURE must be gateway or cloudflare-tunnel." >&2
+  exit 1
+fi
 
 echo ""
 echo "============================================================"
@@ -54,20 +65,20 @@ echo "============================================================"
 echo ""
 
 # --- Phase 1: does gitops/apps/ still have the placeholder? ---
-if grep -q "__GITOPS_REPO_URL__" "${REPO_ROOT}/gitops/apps/"*.yaml 2>/dev/null; then
-  log_info "Substituting GITOPS_REPO_URL into gitops/apps/*.yaml (ArgoCD reads these directly from Git)..."
-  for f in "${REPO_ROOT}/gitops/apps/"*.yaml; do
+if grep -q "__GITOPS_REPO_URL__" "${REPO_ROOT}/${GITOPS_APPS_PATH}/"*.yaml 2>/dev/null; then
+  log_info "Substituting GITOPS_REPO_URL into ${GITOPS_APPS_PATH} (ArgoCD reads these directly from Git)..."
+  for f in "${REPO_ROOT}/${GITOPS_APPS_PATH}/"*.yaml; do
     sed -i \
       -e "s|__GITOPS_REPO_URL__|${GITOPS_REPO_URL}|g" \
       -e "s|__GITOPS_REPO_REVISION__|${GITOPS_REPO_REVISION}|g" \
       "$f"
   done
-  log_ok "Updated $(ls "${REPO_ROOT}/gitops/apps/"*.yaml | wc -l) file(s)"
+  log_ok "Updated $(ls "${REPO_ROOT}/${GITOPS_APPS_PATH}/"*.yaml | wc -l) file(s)"
   echo ""
   echo "============================================================"
   echo "  PAUSE — this needs to reach your Git remote before continuing."
   echo ""
-  echo "  git -C '${REPO_ROOT}' add gitops/apps/"
+  echo "  git -C '${REPO_ROOT}' add ${GITOPS_COMMIT_PATHS}"
   echo "  git -C '${REPO_ROOT}' commit -m 'gitops: point Applications at this repo'"
   echo "  git -C '${REPO_ROOT}' push origin ${GITOPS_REPO_REVISION}"
   echo ""
@@ -112,17 +123,22 @@ helm upgrade --install argocd argo/argo-cd \
   --wait --timeout 5m
 log_ok "ArgoCD ready"
 
-# --- Expose via the Gateway ---
-log_info "Extending the Gateway with an argocd.${APP_DOMAIN} listener..."
-sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" -e "s|__ARGOCD_DOMAIN__|${ARGOCD_DOMAIN}|g" \
-  "${MODULE_DIR}/manifests/gateway-argocd-listener.yaml" | kubectl apply -f -
-sed "s|__ARGOCD_DOMAIN__|${ARGOCD_DOMAIN}|g" "${MODULE_DIR}/manifests/httproute-argocd.yaml" | kubectl apply -f -
-kubectl wait certificate argocd-tls -n online-boutique --for=condition=Ready --timeout=300s \
-  || log_warn "Certificate not Ready yet — check: kubectl describe certificate argocd-tls -n online-boutique"
+# --- Expose ArgoCD ---
+if [[ "${ARGOCD_EXPOSURE}" == "gateway" ]]; then
+  log_info "Extending the Gateway with an argocd.${APP_DOMAIN} listener..."
+  sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" -e "s|__ARGOCD_DOMAIN__|${ARGOCD_DOMAIN}|g" \
+    "${MODULE_DIR}/manifests/gateway-argocd-listener.yaml" | kubectl apply -f -
+  sed "s|__ARGOCD_DOMAIN__|${ARGOCD_DOMAIN}|g" "${MODULE_DIR}/manifests/httproute-argocd.yaml" | kubectl apply -f -
+  kubectl wait certificate argocd-tls -n online-boutique --for=condition=Ready --timeout=300s \
+    || log_warn "Certificate not Ready yet — check: kubectl describe certificate argocd-tls -n online-boutique"
+else
+  log_info "ArgoCD will be exposed through Cloudflare Tunnel at https://${ARGOCD_DOMAIN}"
+  log_info "Configure that public hostname to http://argocd-server.argocd.svc.cluster.local:80 in Cloudflare Zero Trust."
+fi
 
 # --- App-of-Apps ---
 log_info "Applying the App-of-Apps root..."
-sed -e "s|__GITOPS_REPO_URL__|${GITOPS_REPO_URL}|g" -e "s|__GITOPS_REPO_REVISION__|${GITOPS_REPO_REVISION}|g" \
+sed -e "s|__GITOPS_REPO_URL__|${GITOPS_REPO_URL}|g" -e "s|__GITOPS_REPO_REVISION__|${GITOPS_REPO_REVISION}|g" -e "s|__GITOPS_APPS_PATH__|${GITOPS_APPS_PATH}|g" \
   "${REPO_ROOT}/gitops/root-app.yaml" | kubectl apply -f -
 
 log_info "Waiting for the App-of-Apps to sync (this can take a couple of minutes)..."

@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: online-boutique-packaged
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: __GITOPS_REPO_URL__
+      targetRevision: __GITOPS_REPO_REVISION__
+      path: charts/online-boutique
+      helm:
+        releaseName: online-boutique
+        parameters:
+          - name: redisCart.storageClassName
+            value: __ACK_STORAGE_CLASS__
+          - name: redisCart.storageSize
+            value: __ACK_REDIS_DISK_SIZE__
+          - name: nodeSelector.__ACK_WORKLOAD_LABEL_KEY__
+            value: __ACK_WORKLOAD_LABEL_VALUE__
+          - name: redisCart.createSecret
+            value: "false"
+    - repoURL: __GITOPS_REPO_URL__
+      targetRevision: __GITOPS_REPO_REVISION__
+      path: gitops/sealed-secrets/ack/online-boutique-packaged
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: online-boutique-packaged
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

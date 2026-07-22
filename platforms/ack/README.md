@@ -77,12 +77,24 @@ bash platforms/ack/scripts/ack-track.sh enable-observability
 bash platforms/ack/scripts/ack-track.sh enable-logging
 bash platforms/ack/scripts/ack-track.sh enable-packages
 bash platforms/ack/scripts/ack-track.sh verify-packages
+bash platforms/ack/scripts/ack-track.sh enable-gitops
+# Commit and push the generated ACK GitOps files when prompted, configure the
+# Cloudflare public hostname, then re-run enable-gitops.
+bash platforms/ack/scripts/ack-track.sh verify-gitops
 bash platforms/ack/scripts/ack-track.sh verify
 ```
 
 Run each native module's `verify.sh` after its corresponding ACK entrypoint,
 except Module 10, which uses `verify-packages` to account for ACK ESSD's
 minimum disk size.
+
+Module 11 uses `enable-gitops` and `verify-gitops`. It creates ACK-specific
+Application manifests and SealedSecrets because both the ESSD storage settings
+and Sealed Secrets controller key are cluster-specific. Configure
+`ACK_GITOPS_REPO_URL`, `ACK_GITOPS_REPO_REVISION`, and `ACK_ARGOCD_HOSTNAME`
+in `config/ack.env` before running it. The Cloudflare public hostname must
+route to `http://argocd-server.argocd.svc.cluster.local:80`; this is dashboard
+configuration and does not create an ALB.
 The ALB Gateway and Grafana listeners create billable ALB resources. Delete
 the Gateway before deleting the cluster or retiring the lab.
 

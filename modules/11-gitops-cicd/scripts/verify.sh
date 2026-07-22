@@ -8,8 +8,9 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # shellcheck disable=SC1091
 [ -f "${REPO_ROOT}/lab.env" ] && source "${REPO_ROOT}/lab.env"
-APP_DOMAIN="${APP_DOMAIN:-}"
-ARGOCD_DOMAIN="argocd.${APP_DOMAIN}"
+APP_DOMAIN="${APP_DOMAIN_OVERRIDE:-${APP_DOMAIN:-}}"
+ARGOCD_DOMAIN="${ARGOCD_DOMAIN_OVERRIDE:-argocd.${APP_DOMAIN}}"
+ARGOCD_EXPOSURE="${ARGOCD_EXPOSURE:-gateway}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 PASS=0; FAIL=0; WARN=0
@@ -27,11 +28,21 @@ echo -e "${BLUE}--- ArgoCD ---${NC}"
 ARGOCD_READY=$(kubectl get deployment argocd-server -n argocd -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
 [[ -n "$ARGOCD_READY" && "$ARGOCD_READY" != "0" ]] && check_pass "argocd-server is ready" || check_fail "argocd-server is not ready"
 
-CERT_READY=$(kubectl get certificate argocd-tls -n online-boutique -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
-[[ "$CERT_READY" == "True" ]] && check_pass "Certificate argocd-tls is Ready" || check_fail "Certificate argocd-tls not Ready"
+if [[ "${ARGOCD_EXPOSURE}" == "gateway" ]]; then
+  CERT_READY=$(kubectl get certificate argocd-tls -n online-boutique -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+  [[ "$CERT_READY" == "True" ]] && check_pass "Certificate argocd-tls is Ready" || check_fail "Certificate argocd-tls not Ready"
 
-ROUTE_ACCEPTED=$(kubectl get httproute argocd -n argocd -o jsonpath='{.status.parents[0].conditions[?(@.type=="Accepted")].status}' 2>/dev/null)
-[[ "$ROUTE_ACCEPTED" == "True" ]] && check_pass "HTTPRoute argocd is Accepted" || check_fail "HTTPRoute argocd not Accepted"
+  ROUTE_ACCEPTED=$(kubectl get httproute argocd -n argocd -o jsonpath='{.status.parents[0].conditions[?(@.type=="Accepted")].status}' 2>/dev/null)
+  [[ "$ROUTE_ACCEPTED" == "True" ]] && check_pass "HTTPRoute argocd is Accepted" || check_fail "HTTPRoute argocd not Accepted"
+else
+  TUNNEL_READY=$(kubectl get deployment cloudflared -n cloudflare-tunnel -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+  [[ -n "$TUNNEL_READY" && "$TUNNEL_READY" != "0" ]] && check_pass "Cloudflare Tunnel connector is ready" || check_fail "Cloudflare Tunnel connector is not ready"
+  if curl -fsS --max-time 15 "https://${ARGOCD_DOMAIN}/api/version" >/dev/null; then
+    check_pass "ArgoCD is reachable through https://${ARGOCD_DOMAIN}"
+  else
+    check_fail "ArgoCD is not reachable through https://${ARGOCD_DOMAIN} — check the Cloudflare public hostname service mapping"
+  fi
+fi
 
 echo ""
 echo -e "${BLUE}--- Applications ---${NC}"

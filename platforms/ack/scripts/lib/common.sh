@@ -23,6 +23,9 @@ ACK_REDIS_DISK_SIZE="${ACK_REDIS_DISK_SIZE:-20Gi}"
 ACK_WORKLOAD_NODEPOOL="${ACK_WORKLOAD_NODEPOOL:-workloadpool}"
 ACK_WORKLOAD_LABEL_KEY="${ACK_WORKLOAD_LABEL_KEY:-workload}"
 ACK_WORKLOAD_LABEL_VALUE="${ACK_WORKLOAD_LABEL_VALUE:-autoscale}"
+ACK_GITOPS_REPO_URL="${ACK_GITOPS_REPO_URL:-}"
+ACK_GITOPS_REPO_REVISION="${ACK_GITOPS_REPO_REVISION:-main}"
+ACK_ARGOCD_HOSTNAME="${ACK_ARGOCD_HOSTNAME:-}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -41,6 +44,13 @@ require_config() {
 require_storage_config() {
   [[ -n "${ACK_STORAGE_CLASS}" ]] \
     || die "Set ACK_STORAGE_CLASS in ${CONFIG_FILE} from 'kubectl get storageclass'."
+}
+
+require_gitops_config() {
+  [[ -n "${ACK_GITOPS_REPO_URL}" && "${ACK_GITOPS_REPO_URL}" != *"<you>"* ]] \
+    || die "Set ACK_GITOPS_REPO_URL in ${CONFIG_FILE} to the Git remote ArgoCD will clone."
+  [[ -n "${ACK_ARGOCD_HOSTNAME}" ]] \
+    || die "Set ACK_ARGOCD_HOSTNAME in ${CONFIG_FILE} to the Cloudflare Tunnel public hostname."
 }
 
 require_cluster() {

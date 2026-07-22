@@ -3,7 +3,8 @@
 # setup.sh). Everything else — the two child Applications in gitops/apps/ —
 # is then reconciled by ArgoCD from Git, not by any script.
 #
-# __GITOPS_REPO_URL__ and __GITOPS_REPO_REVISION__ are substituted by
+# __GITOPS_REPO_URL__, __GITOPS_REPO_REVISION__, and
+# __GITOPS_APPS_PATH__ are substituted by
 # setup.sh at apply time (this file itself stays a template in Git — unlike
 # gitops/apps/*.yaml, which ArgoCD reads directly from Git and therefore
 # must contain the real repo URL, not a placeholder).
@@ -17,7 +18,7 @@ spec:
   source:
     repoURL: __GITOPS_REPO_URL__
     targetRevision: __GITOPS_REPO_REVISION__
-    path: gitops/apps
+    path: __GITOPS_APPS_PATH__
     directory:
       recurse: false
   destination:

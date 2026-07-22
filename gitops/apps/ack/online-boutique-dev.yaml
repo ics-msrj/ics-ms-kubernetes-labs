@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: online-boutique-dev
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: __GITOPS_REPO_URL__
+      targetRevision: __GITOPS_REPO_REVISION__
+      path: kustomize/overlays/dev
+      kustomize:
+        patches:
+          - target:
+              kind: Secret
+              name: redis-cart-credentials
+            patch: |-
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: redis-cart-credentials
+              $patch: delete
+          - target:
+              kind: Deployment
+            patch: |-
+              - op: add
+                path: /spec/template/spec/nodeSelector
+                value:
+                  __ACK_WORKLOAD_LABEL_KEY__: __ACK_WORKLOAD_LABEL_VALUE__
+          - target:
+              kind: StatefulSet
+            patch: |-
+              - op: add
+                path: /spec/template/spec/nodeSelector
+                value:
+                  __ACK_WORKLOAD_LABEL_KEY__: __ACK_WORKLOAD_LABEL_VALUE__
+              - op: replace
+                path: /spec/volumeClaimTemplates/0/spec/storageClassName
+                value: __ACK_STORAGE_CLASS__
+              - op: replace
+                path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+                value: __ACK_REDIS_DISK_SIZE__
+    - repoURL: __GITOPS_REPO_URL__
+      targetRevision: __GITOPS_REPO_REVISION__
+      path: gitops/sealed-secrets/ack/online-boutique-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: online-boutique-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

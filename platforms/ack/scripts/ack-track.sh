@@ -17,13 +17,15 @@ case "${1:-}" in
   enable-logging) exec "${SCRIPT_DIR}/enable-logging.sh" ;;
   enable-packages) exec "${SCRIPT_DIR}/enable-packages.sh" ;;
   verify-packages) exec "${SCRIPT_DIR}/verify-packages.sh" ;;
+  enable-gitops) exec "${SCRIPT_DIR}/enable-gitops.sh" ;;
+  verify-gitops) exec "${SCRIPT_DIR}/verify-gitops.sh" ;;
   enable-cf-tunnel) exec "${SCRIPT_DIR}/enable-cf-tunnel.sh" ;;
   autoscaling-sim) shift; exec "${SCRIPT_DIR}/autoscaling-sim/ack-autoscaling-sim.sh" "$@" ;;
   verify) exec "${SCRIPT_DIR}/verify.sh" ;;
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|verify-packages|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
+Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|verify-packages|enable-gitops|verify-gitops|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
 
 Run check-prerequisites, obtain a temporary kubeconfig through the ACK
 console, then run connect and preflight. The ACK parity path covers Modules
