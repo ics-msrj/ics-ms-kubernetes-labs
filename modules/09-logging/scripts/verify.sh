@@ -48,7 +48,7 @@ else
 fi
 
 PVC_BOUND=$(kubectl get pvc -n monitoring -l app.kubernetes.io/name=loki -o jsonpath='{.items[0].status.phase}' 2>/dev/null)
-[[ "$PVC_BOUND" == "Bound" ]] && check_pass "Loki's PVC is Bound (Longhorn)" || check_warn "Could not confirm Loki's PVC is Bound (got '${PVC_BOUND:-<none>}')"
+[[ "$PVC_BOUND" == "Bound" ]] && check_pass "Loki's PVC is Bound" || check_warn "Could not confirm Loki's PVC is Bound (got '${PVC_BOUND:-<none>}')"
 
 echo ""
 echo -e "${BLUE}--- Alloy (log-shipping DaemonSet) ---${NC}"
