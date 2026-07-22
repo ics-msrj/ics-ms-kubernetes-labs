@@ -55,6 +55,7 @@ helm repo update minio >/dev/null
 helm upgrade --install minio minio/minio \
   --version "${MINIO_CHART_VERSION}" \
   --namespace velero --create-namespace \
+  -f "${PLATFORM_DIR}/manifests/minio-values.yaml" \
   --set mode=standalone \
   --set persistence.storageClass="${ACK_STORAGE_CLASS}" \
   --set persistence.size="${ACK_BACKUP_DISK_SIZE}" \
@@ -63,14 +64,6 @@ helm upgrade --install minio minio/minio \
   --set 'buckets[0].name=velero-backups' \
   --set 'buckets[0].policy=none' \
   --set 'buckets[0].purge=false' \
-  --set resources.requests.cpu=100m \
-  --set resources.requests.memory=256Mi \
-  --set resources.limits.cpu=500m \
-  --set resources.limits.memory=512Mi \
-  --set makeBucketJob.resources.requests.cpu=50m \
-  --set makeBucketJob.resources.requests.memory=64Mi \
-  --set makeBucketJob.resources.limits.cpu=100m \
-  --set makeBucketJob.resources.limits.memory=128Mi \
   --wait --timeout 5m
 log_ok "MinIO ready"
 
