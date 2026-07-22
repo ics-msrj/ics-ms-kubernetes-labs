@@ -25,6 +25,11 @@ if grep -q '__ACK_STORAGE_CLASS__\|__GITOPS_REPO_URL__' "${APP_DIR}"/*.yaml; the
   for namespace in online-boutique-packaged online-boutique-dev; do
     kubectl get secret redis-cart-credentials -n "${namespace}" >/dev/null \
       || die "redis-cart-credentials is missing in ${namespace}; run enable-packages first."
+    # Module 10 created this Secret before GitOps. Mark it as controller-managed
+    # before applying the SealedSecret so ownership can transition without
+    # changing the existing password.
+    kubectl annotate secret redis-cart-credentials -n "${namespace}" \
+      sealedsecrets.bitnami.com/managed="true" --overwrite
     mkdir -p "${SEALED_DIR}/${namespace}"
     kubectl get secret redis-cart-credentials -n "${namespace}" -o json \
       | kubeseal --format=yaml --controller-namespace=kube-system --controller-name=sealed-secrets-controller \
