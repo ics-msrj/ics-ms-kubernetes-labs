@@ -17,6 +17,10 @@ require_config
 require_storage_config
 require_cluster
 
+# common.sh enables errexit for setup scripts. A verifier must continue after
+# an unavailable object so it can report every failed assertion instead.
+set +e
+
 echo ""
 echo "================================================================"
 echo "  ACK Platform Track - Module 13 Verification"
@@ -57,7 +61,11 @@ if kubectl get namespace online-boutique-restore-drill >/dev/null 2>&1; then
     check_fail "Restore namespace has ${RESTORED_DEPLOYMENTS}/${ORIGINAL_DEPLOYMENTS} Deployments"
   fi
 else
-  check_pass "Restore namespace was cleaned up after the completed drill"
+  if [[ "${RESTORE_PHASE}" == "Completed" ]]; then
+    check_pass "Restore namespace was cleaned up after the completed drill"
+  else
+    check_warn "Restore namespace is absent because the restore has not completed"
+  fi
 fi
 
 echo ""
