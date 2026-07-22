@@ -3,11 +3,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${BACKUP_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/backup-center.sh"
+source "${BACKUP_SCRIPT_DIR}/lib/backup-center.sh"
 
 require_backup_center
 

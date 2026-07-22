@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${BACKUP_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/backup-center.sh"
+source "${BACKUP_SCRIPT_DIR}/lib/backup-center.sh"
 
 PASS=0; FAIL=0; WARN=0
 check_pass() { echo -e "  ${GREEN}PASS${NC}  $1"; PASS=$((PASS + 1)); }
