@@ -11,9 +11,35 @@ initContainers:
   - name: velero-plugin-for-aws
     image: velero/velero-plugin-for-aws:v1.14.2
     imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
     volumeMounts:
       - mountPath: /target
         name: plugins
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Helm creates this short-lived CRD upgrade Job during install. Module 06's
+# policy requires explicit resources for Jobs as well as long-running Pods.
+kubectl:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
 
 # snapshotsEnabled: false — the chart's own default (true) unconditionally
 # renders a VolumeSnapshotLocation with an empty provider unless

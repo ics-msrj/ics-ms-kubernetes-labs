@@ -19,19 +19,24 @@ case "${1:-}" in
   verify-packages) exec "${SCRIPT_DIR}/verify-packages.sh" ;;
   enable-gitops) exec "${SCRIPT_DIR}/enable-gitops.sh" ;;
   verify-gitops) exec "${SCRIPT_DIR}/verify-gitops.sh" ;;
+  enable-backup) exec "${SCRIPT_DIR}/enable-backup.sh" ;;
+  verify-backup) exec "${SCRIPT_DIR}/verify-backup.sh" ;;
   enable-cf-tunnel) exec "${SCRIPT_DIR}/enable-cf-tunnel.sh" ;;
   autoscaling-sim) shift; exec "${SCRIPT_DIR}/autoscaling-sim/ack-autoscaling-sim.sh" "$@" ;;
   verify) exec "${SCRIPT_DIR}/verify.sh" ;;
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|verify-packages|enable-gitops|verify-gitops|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
+Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|verify-packages|enable-gitops|verify-gitops|enable-backup|verify-backup|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
 
 Run check-prerequisites, obtain a temporary kubeconfig through the ACK
-console, then run connect and preflight. The ACK parity path covers Modules
-02 through 10 where an entrypoint exists. enable-networking requires the
+console, then run connect and preflight. The ACK parity path covers provider-
+specific responsibilities through Module 13 where an entrypoint exists.
+enable-networking requires the
 console-managed ALB Ingress Controller v2.17+ and GatewayClass `alb`.
-autoscaling-sim is isolated from the curriculum deployment path.
+enable-backup is the Module 13 equivalent; it uses Velero, MinIO, ACK CSI
+snapshots, and a workload-node drain drill. autoscaling-sim is isolated from
+the curriculum deployment path.
 EOF
     exit 1
     ;;

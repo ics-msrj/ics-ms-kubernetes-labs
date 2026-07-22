@@ -81,6 +81,10 @@ bash platforms/ack/scripts/ack-track.sh enable-gitops
 # Commit and push the generated ACK GitOps files when prompted, configure the
 # Cloudflare public hostname, then re-run enable-gitops.
 bash platforms/ack/scripts/ack-track.sh verify-gitops
+bash modules/12-progressive-delivery/scripts/setup.sh
+bash modules/12-progressive-delivery/scripts/verify.sh
+bash platforms/ack/scripts/ack-track.sh enable-backup
+bash platforms/ack/scripts/ack-track.sh verify-backup
 bash platforms/ack/scripts/ack-track.sh verify
 ```
 
@@ -155,7 +159,10 @@ its own delay and billing continues until added nodes are released.
 | 08 | Adapt: kube-prometheus-stack with managed-node exporter and ALB Gateway listener. |
 | 09 | Adapt: native Loki/Alloy with ACK CSI StorageClass. |
 | 10 | Adapt: native Helm/Kustomize with ACK CSI and workload-pool selector. |
-| 11-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
+| 11 | Adapt: ArgoCD uses ACK-specific Applications and Cloudflare Tunnel exposure. |
+| 12 | Candidate native module; validate before the Module 13 restore drill. |
+| 13 | Adapt: `enable-backup.sh` uses Velero/MinIO and ACK CSI snapshots; ACK owns etcd and the control plane. |
+| 14-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
 | 18 | Adapt: isolated ACK VPA-first capacity simulation; other chaos experiments remain pending. |
 | 99 | Candidate native module once prerequisite adapters are proven. |
 
