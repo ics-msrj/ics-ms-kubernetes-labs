@@ -19,6 +19,9 @@ case "${1:-}" in
   verify-packages) exec "${SCRIPT_DIR}/verify-packages.sh" ;;
   enable-gitops) exec "${SCRIPT_DIR}/enable-gitops.sh" ;;
   verify-gitops) exec "${SCRIPT_DIR}/verify-gitops.sh" ;;
+  enable-rancher) exec "${SCRIPT_DIR}/enable-rancher.sh" ;;
+  verify-rancher) exec "${SCRIPT_DIR}/verify-rancher.sh" ;;
+  cleanup-rancher) exec "${SCRIPT_DIR}/cleanup-rancher.sh" ;;
   enable-backup) exec "${SCRIPT_DIR}/enable-backup.sh" ;;
   run-backup-drill) exec "${SCRIPT_DIR}/run-backup-drill.sh" ;;
   verify-backup) exec "${SCRIPT_DIR}/verify-backup.sh" ;;
@@ -30,7 +33,7 @@ case "${1:-}" in
   destroy) exec "${SCRIPT_DIR}/destroy.sh" ;;
   *)
     cat >&2 <<'EOF'
-Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|verify-packages|enable-gitops|verify-gitops|enable-backup|run-backup-drill|verify-backup|cleanup-backup-drill|cleanup-legacy-backup|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
+Usage: ack-track.sh <check-prerequisites|connect|preflight|enable-managed-addons|deploy-core-workloads|enable-secrets|enable-networking|enable-storage|enable-scaling|enable-observability|enable-logging|enable-packages|verify-packages|enable-gitops|verify-gitops|enable-rancher|verify-rancher|cleanup-rancher|enable-backup|run-backup-drill|verify-backup|cleanup-backup-drill|cleanup-legacy-backup|enable-cf-tunnel|autoscaling-sim|verify|destroy> [simulation-action]
 
 Run check-prerequisites, obtain a temporary kubeconfig through the ACK
 console, then run connect and preflight. The ACK parity path covers provider-
@@ -41,6 +44,9 @@ enable-backup registers the native ACK Backup Center vault. run-backup-drill
 backs up only online-boutique and restores into an isolated namespace; it does
 not perform a node drain. autoscaling-sim is isolated from the curriculum
 deployment path.
+enable-rancher installs the Module 14 management server behind the existing
+Cloudflare Tunnel. Configure the public hostname, then import downstream
+clusters manually before running verify-rancher.
 EOF
     exit 1
     ;;

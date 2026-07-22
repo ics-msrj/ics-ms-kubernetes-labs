@@ -91,6 +91,10 @@ bash platforms/ack/scripts/ack-track.sh run-backup-drill
 bash platforms/ack/scripts/ack-track.sh verify-backup
 # Deliberately remove the isolated restore and one-time backup afterward.
 bash platforms/ack/scripts/ack-track.sh cleanup-backup-drill
+bash platforms/ack/scripts/ack-track.sh enable-rancher
+# Configure the Cloudflare hostname printed by the command, import AKS and GKE,
+# then verify their Rancher Connected state.
+bash platforms/ack/scripts/ack-track.sh verify-rancher
 bash platforms/ack/scripts/ack-track.sh verify
 ```
 
@@ -123,6 +127,47 @@ NodePorts. It does not drain a node or modify the source namespace. Run
 `verify-backup`, then `cleanup-backup-drill` to remove the drill through ACK
 Backup Center's `DeleteRequest` API. If this repository's earlier MinIO/Velero
 attempt exists, remove it separately with `cleanup-legacy-backup`.
+
+## Module 14: Rancher Multi-Cluster Management
+
+ACK is the sole Rancher management cluster. Do not install another Rancher
+server on AKS or GKE. `enable-rancher` installs Rancher behind the existing
+Cloudflare Tunnel with external TLS termination; it creates no ALB, Gateway,
+or cert-manager dependency. Set these values in `config/ack.env` first:
+
+```bash
+ACK_RANCHER_HOSTNAME="ack-rancher.next-ops.ai"
+ACK_RANCHER_CHART_VERSION="2.14.3"
+ACK_RANCHER_REPLICAS="2"
+ACK_RANCHER_EXPECTED_DOWNSTREAMS="aks-nextops-production-sgp-001,gke-nextops-production-sgp-001"
+```
+
+Run `bash platforms/ack/scripts/ack-track.sh enable-rancher`. In Cloudflare
+Zero Trust, add a public hostname mapping
+`https://ack-rancher.next-ops.ai` to
+`http://rancher.cattle-system.svc.cluster.local:80`. Keep Cloudflare Access
+off this hostname unless its policy explicitly bypasses `cattle-cluster-agent`
+traffic; the agents need unattended HTTPS and WebSocket access to Rancher for
+both import and ongoing management.
+
+The adapter reapplies Module 06's documented, narrow `cattle-system` exception
+to the resource-limit policy. Rancher's upstream pre-upgrade hook has no
+resource override; the exception prevents Kyverno from breaking later Helm
+upgrades while leaving application namespaces enforced.
+
+Open Rancher, retrieve the generated bootstrap password using the command the
+script prints, set a permanent admin password, then choose **Cluster
+Management -> Import Existing -> Generic**. Run Rancher's generated command
+against each downstream context, never against ACK:
+
+```bash
+kubectl --context aks-nextops-production-sgp-001 apply -f "<Rancher-import-URL>"
+kubectl --context gke_ics-nextops-production_asia-southeast1-a_gke-nextops-production-sgp-001 apply -f "<Rancher-import-URL>"
+```
+
+Use a separate import URL for each cluster. When both agents report
+**Connected** in Rancher, run `verify-rancher`. `cleanup-rancher` removes only
+the management server; it never deletes either downstream cluster.
 
 The workload pool must be labelled `workload=autoscale` (or the configured
 equivalent). Its minimum should be one node and its maximum should initially
@@ -245,7 +290,8 @@ its own delay and billing continues until added nodes are released.
 | 11 | Adapt: ArgoCD uses ACK-specific Applications and Cloudflare Tunnel exposure. |
 | 12 | Candidate native module; validate before the Module 13 restore drill. |
 | 13 | Replace: ACK Backup Center (`migrate-controller`), OSS BackupLocation, ECS CSI snapshots, and isolated restore drill. |
-| 14-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
+| 14 | Adapt: Rancher runs on ACK behind Cloudflare Tunnel; import existing AKS and GKE clusters as downstreams. |
+| 15-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
 | 18 | Adapt: isolated ACK VPA-first capacity simulation; other chaos experiments remain pending. |
 | 99 | Candidate native module once prerequisite adapters are proven. |
 

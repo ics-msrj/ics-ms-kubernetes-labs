@@ -1,0 +1,31 @@
+# Rancher runs behind Cloudflare Tunnel. Cloudflare terminates public TLS and
+# forwards HTTP only over the in-cluster connector-to-Service path.
+networkExposure:
+  type: none
+
+ingress:
+  enabled: false
+
+service:
+  type: ClusterIP
+  disableHTTP: false
+
+tls: external
+agentTLSMode: system-store
+
+replicas: 2
+antiAffinity: preferred
+topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+# The chart's post-delete hook has no resource settings and would be rejected
+# by this lab's Kyverno policy. Namespace cleanup is handled explicitly.
+postDelete:
+  enabled: false

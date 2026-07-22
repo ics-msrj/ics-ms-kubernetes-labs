@@ -16,6 +16,14 @@ spec:
           - resources:
               kinds:
                 - Pod
+      # Rancher's vendor-owned pre-upgrade hook cannot be configured with
+      # resource values. Keep this narrowly scoped management namespace out
+      # of the application guardrail so Helm upgrades remain possible.
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - cattle-system
       validate:
         message: "CPU and memory requests and limits are required on every container."
         pattern:

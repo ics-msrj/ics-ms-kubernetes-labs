@@ -26,6 +26,10 @@ ACK_WORKLOAD_LABEL_VALUE="${ACK_WORKLOAD_LABEL_VALUE:-autoscale}"
 ACK_GITOPS_REPO_URL="${ACK_GITOPS_REPO_URL:-}"
 ACK_GITOPS_REPO_REVISION="${ACK_GITOPS_REPO_REVISION:-main}"
 ACK_ARGOCD_HOSTNAME="${ACK_ARGOCD_HOSTNAME:-}"
+ACK_RANCHER_HOSTNAME="${ACK_RANCHER_HOSTNAME:-}"
+ACK_RANCHER_CHART_VERSION="${ACK_RANCHER_CHART_VERSION:-2.14.3}"
+ACK_RANCHER_REPLICAS="${ACK_RANCHER_REPLICAS:-2}"
+ACK_RANCHER_EXPECTED_DOWNSTREAMS="${ACK_RANCHER_EXPECTED_DOWNSTREAMS:-}"
 ACK_BACKUP_BUCKET="${ACK_BACKUP_BUCKET:-}"
 ACK_BACKUP_LOCATION="${ACK_BACKUP_LOCATION:-ack-backup}"
 ACK_BACKUP_PREFIX="${ACK_BACKUP_PREFIX:-${ACK_CLUSTER_NAME}/module-13}"
@@ -58,6 +62,13 @@ require_gitops_config() {
     || die "Set ACK_GITOPS_REPO_URL in ${CONFIG_FILE} to the Git remote ArgoCD will clone."
   [[ -n "${ACK_ARGOCD_HOSTNAME}" ]] \
     || die "Set ACK_ARGOCD_HOSTNAME in ${CONFIG_FILE} to the Cloudflare Tunnel public hostname."
+}
+
+require_rancher_config() {
+  [[ -n "${ACK_RANCHER_HOSTNAME}" && "${ACK_RANCHER_HOSTNAME}" != *"example.com"* ]] \
+    || die "Set ACK_RANCHER_HOSTNAME in ${CONFIG_FILE} to the Cloudflare Tunnel public hostname."
+  [[ "${ACK_RANCHER_REPLICAS}" =~ ^[1-9][0-9]*$ ]] \
+    || die "ACK_RANCHER_REPLICAS must be a positive integer in ${CONFIG_FILE}."
 }
 
 require_backup_config() {
