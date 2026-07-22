@@ -17,8 +17,13 @@ require_command kubectl
 require_command helm
 require_command kubeseal
 require_cluster
-kubectl get gateway frontend-gateway -n online-boutique >/dev/null 2>&1 \
-  || die "Run enable-networking first."
+
+use_alb_gateway=false
+if kubectl get gateway frontend-gateway -n online-boutique >/dev/null 2>&1; then
+  use_alb_gateway=true
+else
+  log_info "No ACK ALB Gateway exists; Grafana will use a Cloudflare Tunnel public hostname instead."
+fi
 
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 mkdir -p "${GENERATED_DIR}"
@@ -67,7 +72,11 @@ helm repo update jetstack >/dev/null
 helm upgrade cert-manager jetstack/cert-manager --version "v${CERT_MANAGER_VERSION}" \
   --namespace cert-manager --reuse-values --set prometheus.servicemonitor.enabled=true
 kubectl apply -f "${NATIVE_MODULE_DIR}/manifests/prometheusrule-alerts.yaml"
-sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__APP_DOMAIN__|${APP_DOMAIN}|g" \
-  -e "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" "${PLATFORM_DIR}/manifests/gateway-grafana-listener.yaml" | kubectl apply -f -
-sed "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" "${NATIVE_MODULE_DIR}/manifests/httproute-grafana.yaml" | kubectl apply -f -
-log_ok "Module 08 equivalent applied. Grafana: https://${GRAFANA_DOMAIN}"
+if [[ "${use_alb_gateway}" == true ]]; then
+  sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__APP_DOMAIN__|${APP_DOMAIN}|g" \
+    -e "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" "${PLATFORM_DIR}/manifests/gateway-grafana-listener.yaml" | kubectl apply -f -
+  sed "s|__GRAFANA_DOMAIN__|${GRAFANA_DOMAIN}|g" "${NATIVE_MODULE_DIR}/manifests/httproute-grafana.yaml" | kubectl apply -f -
+  log_ok "Module 08 equivalent applied. Grafana: https://${GRAFANA_DOMAIN}"
+else
+  log_ok "Module 08 equivalent applied. Configure ${GRAFANA_DOMAIN} in Cloudflare Tunnel to route to http://monitoring-grafana.monitoring.svc.cluster.local:80."
+fi
