@@ -19,6 +19,7 @@ MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(cd "${MODULE_DIR}/../.." && pwd)"
 GENERATED_DIR="${MODULE_DIR}/generated"
 REDIS_STORAGE_CLASS="${REDIS_STORAGE_CLASS:-longhorn}"
+REDIS_STORAGE_SIZE="${REDIS_STORAGE_SIZE:-1Gi}"
 # Empty by default (native kubeadm has no system/workload pool split to
 # route around) — set both on AKS/GKE to keep this chart's Pods off the
 # system pool. Found to matter live: without it, frontend/emailservice/
@@ -66,6 +67,7 @@ helm upgrade --install online-boutique "${REPO_ROOT}/charts/online-boutique" \
   --namespace online-boutique-packaged --create-namespace \
   --set redisCart.password="${REDIS_PASSWORD}" \
   --set redisCart.storageClassName="${REDIS_STORAGE_CLASS}" \
+  --set redisCart.storageSize="${REDIS_STORAGE_SIZE}" \
   "${HELM_NODE_SELECTOR_ARGS[@]}" \
   --wait --timeout 5m
 unset REDIS_PASSWORD
@@ -80,16 +82,16 @@ log_ok "Chart deployed — 11 Deployments + 1 StatefulSet from one set of templa
 # whole kustomize/ tree to a scratch dir and inject a valuesInline block
 # there instead — the committed files are never touched.
 KUSTOMIZE_SRC="${REPO_ROOT}/kustomize"
-if [[ "${REDIS_STORAGE_CLASS}" != "longhorn" || -n "${WORKLOAD_NODE_SELECTOR_KEY}" ]]; then
+if [[ "${REDIS_STORAGE_CLASS}" != "longhorn" || "${REDIS_STORAGE_SIZE}" != "1Gi" || -n "${WORKLOAD_NODE_SELECTOR_KEY}" ]]; then
   KUSTOMIZE_ROOT="$(mktemp -d)"
   trap 'rm -rf "$KUSTOMIZE_ROOT"' EXIT
   cp -r "${KUSTOMIZE_SRC}/." "${KUSTOMIZE_ROOT}/"
-  python3 - "${KUSTOMIZE_ROOT}/base/kustomization.yaml" "${REDIS_STORAGE_CLASS}" "${WORKLOAD_NODE_SELECTOR_KEY}" "${WORKLOAD_NODE_SELECTOR_VALUE}" "${REPO_ROOT}/charts" <<'PYEOF'
+  python3 - "${KUSTOMIZE_ROOT}/base/kustomization.yaml" "${REDIS_STORAGE_CLASS}" "${REDIS_STORAGE_SIZE}" "${WORKLOAD_NODE_SELECTOR_KEY}" "${WORKLOAD_NODE_SELECTOR_VALUE}" "${REPO_ROOT}/charts" <<'PYEOF'
 import sys, yaml
-path, storage_class, selector_key, selector_value, chart_home = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+path, storage_class, storage_size, selector_key, selector_value, chart_home = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
 with open(path) as f:
     doc = yaml.safe_load(f)
-values = {"redisCart": {"storageClassName": storage_class}}
+values = {"redisCart": {"storageClassName": storage_class, "storageSize": storage_size}}
 if selector_key:
     values["nodeSelector"] = {selector_key: selector_value}
 doc["helmCharts"][0]["valuesInline"] = values
