@@ -102,6 +102,25 @@ doc["helmCharts"][0]["valuesInline"] = values
 doc["helmGlobals"]["chartHome"] = chart_home
 with open(path, "w") as f:
     yaml.safe_dump(doc, f, sort_keys=False)
+
+# The environment overlays deliberately reduce or increase Redis capacity for
+# native-lab comparison. A managed disk may impose a higher minimum, so adapt
+# the scratch copies too; the committed overlay values remain provider-neutral.
+for env in ("dev", "staging", "prod"):
+    overlay_path = path.replace("/base/kustomization.yaml", f"/overlays/{env}/kustomization.yaml")
+    with open(overlay_path) as f:
+        overlay = yaml.safe_load(f)
+    for patch in overlay.get("patches", []):
+        target = patch.get("target", {})
+        if target.get("kind") != "StatefulSet" or target.get("name") != "redis-cart":
+            continue
+        operations = yaml.safe_load(patch["patch"])
+        for operation in operations:
+            if operation.get("path") == "/spec/volumeClaimTemplates/0/spec/resources/requests/storage":
+                operation["value"] = storage_size
+        patch["patch"] = yaml.safe_dump(operations, sort_keys=False).rstrip()
+    with open(overlay_path, "w") as f:
+        yaml.safe_dump(overlay, f, sort_keys=False)
 PYEOF
 else
   KUSTOMIZE_ROOT="${KUSTOMIZE_SRC}"
