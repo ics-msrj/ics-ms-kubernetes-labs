@@ -131,6 +131,67 @@ resources; it does not use a raw 80% node-CPU threshold. Keep VPA in `Off`
 mode while reviewing recommendations, then use those requests to create the
 pending-Pod condition that drives node-pool scaling.
 
+## Kubecost + NextOps Agent (ICS-internal, not part of this repo's own curriculum)
+
+Live on this cluster (`ack-nextops-production-jkt-001`) as of 2026-07-22 — see
+the `nextops-agent-kubecost` memory entry for the AKS/GKE install pattern this
+mirrors. ACK needed real deviations, found by actually installing it, not by
+reading the chart:
+
+- **Kubecost 2.8.6** reuses this cluster's own `monitoring` Prometheus/Grafana
+  release (same `global.prometheus.fqdn`/`global.grafana.domainName` pattern
+  as AKS/GKE), `persistentVolume.storageClass=alicloud-disk-essd`.
+- **Alibaba Cloud is not a first-class Kubecost cloud provider** the way
+  AWS/GCP/Azure are. `kubecostProductConfigs.alibabaServiceKeyName` /
+  `alibabaServiceKeyPassword` (a RAM AccessKey with only `ecs:DescribePrice` +
+  `ecs:DescribeDisks`, read-only, no billing-API access) wires up a real
+  `AlibabaProvider` in the chart — confirmed live (`Found ProviderID starting
+  with "alibaba", using Alibaba Cloud Provider`) — but it **never actually
+  resolves per-node instance pricing**: every node logged `No pricing data
+  found for node ..., using custom pricing`, with no auth/permission error at
+  all. Matches Alibaba's own announcement calling this a "beta"/"initial
+  stage" integration.
+- **Fix:** `kubecostProductConfigs.customPricesEnabled=true` +
+  `defaultModelPricing` with real Alibaba pricing, not Kubecost's generic
+  (AWS-like) default. Pulled live on-demand prices via
+  `aliyun ecs DescribePrice` (region `ap-southeast-5`, the actual workload/
+  system instance types from `terraform.tfvars`: `ecs.g7ne.large`,
+  `ecs.g7ne.2xlarge`, `ecs.g7nex.xlarge`), then `aliyun ecs
+  DescribeInstanceTypes` for vCPU/RAM specs. Because every sampled instance
+  type has the same 4 GiB-per-vCPU ratio, the real prices alone can't
+  separate a CPU-vs-RAM split (the linear system is singular) — resolved by
+  keeping Kubecost's own default CPU:RAM cost *ratio* (~9:1) but rescaling it
+  so the weighted total (2× `g7ne.large` + 3× `g7nex.xlarge`, the live fleet
+  at install time) matches the real fleet cost exactly:
+  `defaultModelPricing.CPU=38.82`, `.RAM=4.28` (USD/month). Verified live
+  against `/allocation/compute` — implied node rates
+  (`cpuCost`/`cpuCoreHours`, `ramCost`/`ramByteHours`) matched the target to
+  5 significant figures.
+- **Known unresolved gap:** PV/disk cost is *not* using
+  `defaultModelPricing.storage` — it's applying a flat `$0.005064/GiB-hour`
+  (≈20x too high), which looks like the chart resolving `DescribeDisks`
+  successfully (unlike instance pricing) but misapplying a 20GB reference
+  disk's total hourly price as if it were a per-GiB rate. Small relative to
+  total cluster cost (compute dominates), but real — do not trust the PV/disk
+  cost line in the Kubecost UI for this cluster until this is fixed.
+- **NextOps Agent 0.101.3**, namespace `kubecost` (not a separate `nextops`
+  namespace — simpler, matches AKS). `cluster.provider="k8s"` — the install
+  guide only documents `aws`/`azure`/`gcp` as real cost-model providers, plus
+  `k8s` for the self-managed/kubeadm-native track; Alibaba isn't in the
+  supported list at all, so `k8s` (generic, no cloud-specific cost-model
+  assumptions) is the correct choice, same reasoning as a bare kubeadm
+  cluster. `cluster.region="ap-southeast-5"`. Confirmed live end-to-end: a
+  manual-triggered Job's logs show `NextOps ingest response: {"accepted":
+  true, "cluster_id": "ack-nextops-production-jkt-001", "costs_upserted": 99,
+  "nodes_upserted": 5, ...}` and `NextOps agent completed successfully`.
+- **Kubeconfig note specific to this cluster:** the ACK console offers both a
+  Public Access and an Internal/VPC Access kubeconfig. The internal one's
+  `server` is a `172.30.x.x` private IP — unreachable from outside the VPC,
+  `kubectl` just hangs (not an auth error). Use the Public Access kubeconfig
+  from a machine outside the VPC. Also, console-downloaded kubeconfigs here
+  carry a short-lived (~65 minute) client certificate — expect to re-download
+  before any session that runs long.
+
 ## Autoscaling Simulation
 
 The ACK capacity simulation is isolated in `ack-autoscale-sim`; it does not
