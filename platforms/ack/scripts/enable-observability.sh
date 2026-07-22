@@ -69,8 +69,34 @@ helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
 
 helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
 helm repo update jetstack >/dev/null
-helm upgrade cert-manager jetstack/cert-manager --version "v${CERT_MANAGER_VERSION}" \
-  --namespace cert-manager --reuse-values --set prometheus.servicemonitor.enabled=true
+cert_manager_args=(
+  --version "v${CERT_MANAGER_VERSION}"
+  --namespace cert-manager
+  --create-namespace
+  --set crds.enabled=true
+  --set prometheus.servicemonitor.enabled=true
+  --set resources.requests.cpu=50m
+  --set resources.requests.memory=64Mi
+  --set resources.limits.cpu=200m
+  --set resources.limits.memory=256Mi
+  --set webhook.resources.requests.cpu=25m
+  --set webhook.resources.requests.memory=32Mi
+  --set webhook.resources.limits.cpu=100m
+  --set webhook.resources.limits.memory=128Mi
+  --set cainjector.resources.requests.cpu=25m
+  --set cainjector.resources.requests.memory=64Mi
+  --set cainjector.resources.limits.cpu=100m
+  --set cainjector.resources.limits.memory=128Mi
+  --set startupapicheck.resources.requests.cpu=10m
+  --set startupapicheck.resources.requests.memory=32Mi
+  --set startupapicheck.resources.limits.cpu=50m
+  --set startupapicheck.resources.limits.memory=64Mi
+)
+if helm status cert-manager -n cert-manager >/dev/null 2>&1; then
+  helm upgrade cert-manager jetstack/cert-manager --reuse-values "${cert_manager_args[@]}"
+else
+  helm install cert-manager jetstack/cert-manager "${cert_manager_args[@]}"
+fi
 kubectl apply -f "${NATIVE_MODULE_DIR}/manifests/prometheusrule-alerts.yaml"
 if [[ "${use_alb_gateway}" == true ]]; then
   sed -e "s|__TLS_ISSUER__|${TLS_ISSUER}|g" -e "s|__APP_DOMAIN__|${APP_DOMAIN}|g" \
