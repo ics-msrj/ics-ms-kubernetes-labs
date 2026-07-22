@@ -13,6 +13,19 @@ spec:
   includedNamespaces:
     - __ACK_BACKUP_NAMESPACE__
   includeClusterResources: false
+  # Controllers recreate these objects; restoring them causes stale runtime
+  # state and admission failures without improving application recovery.
+  excludedResources:
+    - pods
+    - replicasets.apps
+    - controllerrevisions.apps
+    - jobs.batch
+    - endpoints
+    - endpointslices.discovery.k8s.io
+    - events
+    - ciliumendpoints.cilium.io
+    - policyreports.wgpolicyk8s.io
+    - verticalpodautoscalercheckpoints.autoscaling.k8s.io
   pvBackup:
     defaultPvBackup: true
   storageLocation: __ACK_BACKUP_LOCATION__
