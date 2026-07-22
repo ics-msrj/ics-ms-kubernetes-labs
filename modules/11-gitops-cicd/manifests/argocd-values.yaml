@@ -14,6 +14,11 @@ configs:
     # this, it has no idea our overlays' helmCharts inflation (Module 10)
     # needs --enable-helm, and would fail to render online-boutique-dev.
     kustomize.buildOptions: "--enable-helm --load-restrictor LoadRestrictionsNone"
+  params:
+    # Initial adoption can reconcile both 36-object applications at once.
+    # Keep that burst bounded on a small lab control plane.
+    controller.operation.processors: 5
+    controller.status.processors: 10
 
 # Module 06 enforces CPU and memory requests and limits for every Pod. Keep
 # the ArgoCD control plane modest for the lab while leaving headroom for repo
@@ -21,11 +26,11 @@ configs:
 controller:
   resources:
     requests:
-      cpu: 250m
-      memory: 256Mi
-    limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
 
 dex:
   resources:
