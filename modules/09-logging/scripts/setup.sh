@@ -18,6 +18,7 @@ MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 LOKI_CHART_VERSION="${LOKI_CHART_VERSION:-7.0.0}"
 ALLOY_CHART_VERSION="${ALLOY_CHART_VERSION:-1.10.1}"
 LOKI_STORAGE_CLASS="${LOKI_STORAGE_CLASS:-longhorn}"
+LOKI_PERSISTENCE_SIZE="${LOKI_PERSISTENCE_SIZE:-10Gi}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -66,6 +67,7 @@ helm upgrade --install loki grafana/loki \
   --set 'loki.schemaConfig.configs[0].index.period=24h' \
   --set singleBinary.replicas=1 \
   --set singleBinary.persistence.storageClass="${LOKI_STORAGE_CLASS}" \
+  --set singleBinary.persistence.size="${LOKI_PERSISTENCE_SIZE}" \
   --set read.replicas=0 \
   --set write.replicas=0 \
   --set backend.replicas=0 \
