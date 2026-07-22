@@ -1,0 +1,17 @@
+apiVersion: csdr.alibabacloud.com/v1beta1
+kind: BackupLocation
+metadata:
+  name: __ACK_BACKUP_LOCATION__
+  namespace: csdr
+  labels:
+    app.kubernetes.io/managed-by: ack-platform-track
+    platform.nextops.ai/component: backup-center
+spec:
+  backupSyncPeriod: 0s
+  config:
+    network: internal
+    region: __ACK_REGION__
+  objectStorage:
+    bucket: __ACK_BACKUP_BUCKET__
+    prefix: __ACK_BACKUP_PREFIX__
+  provider: alibabacloud

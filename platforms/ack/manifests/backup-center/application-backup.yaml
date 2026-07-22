@@ -1,0 +1,19 @@
+apiVersion: csdr.alibabacloud.com/v1beta1
+kind: ApplicationBackup
+metadata:
+  name: __ACK_BACKUP_NAME__
+  namespace: csdr
+  labels:
+    app.kubernetes.io/managed-by: ack-platform-track
+    platform.nextops.ai/backup-drill: "true"
+  annotations:
+    csdr.alibabacloud.com/backuplocations: >-
+      {"name":"__ACK_BACKUP_LOCATION__","region":"__ACK_REGION__","bucket":"__ACK_BACKUP_BUCKET__","prefix":"__ACK_BACKUP_PREFIX__","provider":"alibabacloud"}
+spec:
+  includedNamespaces:
+    - __ACK_BACKUP_NAMESPACE__
+  includeClusterResources: false
+  pvBackup:
+    defaultPvBackup: true
+  storageLocation: __ACK_BACKUP_LOCATION__
+  ttl: __ACK_BACKUP_TTL__

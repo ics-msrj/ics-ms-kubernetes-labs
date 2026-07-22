@@ -83,8 +83,14 @@ bash platforms/ack/scripts/ack-track.sh enable-gitops
 bash platforms/ack/scripts/ack-track.sh verify-gitops
 bash modules/12-progressive-delivery/scripts/setup.sh
 bash modules/12-progressive-delivery/scripts/verify.sh
+# Before Module 13: create an ap-southeast-5 cnfs-oss-* bucket, enable Cloud
+# Backup/ECS Snapshots, authorize the ACK backup role, and install
+# migrate-controller in the ACK console. Then set ACK_BACKUP_* in ack.env.
 bash platforms/ack/scripts/ack-track.sh enable-backup
+bash platforms/ack/scripts/ack-track.sh run-backup-drill
 bash platforms/ack/scripts/ack-track.sh verify-backup
+# Deliberately remove the isolated restore and one-time backup afterward.
+bash platforms/ack/scripts/ack-track.sh cleanup-backup-drill
 bash platforms/ack/scripts/ack-track.sh verify
 ```
 
@@ -101,6 +107,22 @@ route to `http://argocd-server.argocd.svc.cluster.local:80`; this is dashboard
 configuration and does not create an ALB.
 The ALB Gateway and Grafana listeners create billable ALB resources. Delete
 the Gateway before deleting the cluster or retiring the lab.
+
+## Module 13: ACK Backup Center
+
+Module 13 uses ACK Backup Center rather than a self-hosted Velero/MinIO
+installation. In the ACK console, activate Cloud Backup and ECS Snapshots,
+create a Jakarta OSS bucket whose name starts with `cnfs-oss-`, authorize the
+backup role, and install `migrate-controller`. Set the `ACK_BACKUP_*` values
+in `config/ack.env`, then run `enable-backup` to register a `BackupLocation`.
+The bucket, prefix, and region are treated as immutable shared vault state.
+
+`run-backup-drill` backs up only `online-boutique`, excludes cluster-scoped
+resources, and restores into `online-boutique-restore-drill` with fresh
+NodePorts. It does not drain a node or modify the source namespace. Run
+`verify-backup`, then `cleanup-backup-drill` to remove the drill through ACK
+Backup Center's `DeleteRequest` API. If this repository's earlier MinIO/Velero
+attempt exists, remove it separately with `cleanup-legacy-backup`.
 
 The workload pool must be labelled `workload=autoscale` (or the configured
 equivalent). Its minimum should be one node and its maximum should initially
@@ -161,7 +183,7 @@ its own delay and billing continues until added nodes are released.
 | 10 | Adapt: native Helm/Kustomize with ACK CSI and workload-pool selector. |
 | 11 | Adapt: ArgoCD uses ACK-specific Applications and Cloudflare Tunnel exposure. |
 | 12 | Candidate native module; validate before the Module 13 restore drill. |
-| 13 | Adapt: `enable-backup.sh` uses Velero/MinIO and ACK CSI snapshots; ACK owns etcd and the control plane. |
+| 13 | Replace: ACK Backup Center (`migrate-controller`), OSS BackupLocation, ECS CSI snapshots, and isolated restore drill. |
 | 14-17 | Pending live validation; do not run provider-sensitive native steps unchanged. |
 | 18 | Adapt: isolated ACK VPA-first capacity simulation; other chaos experiments remain pending. |
 | 99 | Candidate native module once prerequisite adapters are proven. |
@@ -172,5 +194,6 @@ its own delay and billing continues until added nodes are released.
 bash platforms/ack/scripts/ack-track.sh destroy
 ```
 
-This removes only lab Kubernetes resources and never deletes an ACK cluster,
-node pool, ESSD disk, snapshot, ALB, VPC, or Resource Group.
+This removes only the application lab resources. It does not remove ACK Backup
+Center vaults, backup records, ECS snapshots, ALB, VPC, node pools, or the ACK
+cluster. Use `cleanup-backup-drill` for the explicit one-time backup cleanup.
