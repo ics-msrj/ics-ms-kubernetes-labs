@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: __GITOPS_REPO_URL__
-      targetRevision: __GITOPS_REPO_REVISION__
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
       path: kustomize/overlays/dev
       kustomize:
         patches:
@@ -26,22 +26,22 @@ spec:
               - op: add
                 path: /spec/template/spec/nodeSelector
                 value:
-                  __ACK_WORKLOAD_LABEL_KEY__: __ACK_WORKLOAD_LABEL_VALUE__
+                  workload: autoscale
           - target:
               kind: StatefulSet
             patch: |-
               - op: add
                 path: /spec/template/spec/nodeSelector
                 value:
-                  __ACK_WORKLOAD_LABEL_KEY__: __ACK_WORKLOAD_LABEL_VALUE__
+                  workload: autoscale
               - op: replace
                 path: /spec/volumeClaimTemplates/0/spec/storageClassName
-                value: __ACK_STORAGE_CLASS__
+                value: alicloud-disk-essd
               - op: replace
                 path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
-                value: __ACK_REDIS_DISK_SIZE__
-    - repoURL: __GITOPS_REPO_URL__
-      targetRevision: __GITOPS_REPO_REVISION__
+                value: 20Gi
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
       path: gitops/sealed-secrets/ack/online-boutique-dev
   destination:
     server: https://kubernetes.default.svc

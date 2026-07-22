@@ -6,22 +6,22 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: __GITOPS_REPO_URL__
-      targetRevision: __GITOPS_REPO_REVISION__
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
       path: charts/online-boutique
       helm:
         releaseName: online-boutique
         parameters:
           - name: redisCart.storageClassName
-            value: __ACK_STORAGE_CLASS__
+            value: alicloud-disk-essd
           - name: redisCart.storageSize
-            value: __ACK_REDIS_DISK_SIZE__
-          - name: nodeSelector.__ACK_WORKLOAD_LABEL_KEY__
-            value: __ACK_WORKLOAD_LABEL_VALUE__
+            value: 20Gi
+          - name: nodeSelector.workload
+            value: autoscale
           - name: redisCart.createSecret
             value: "false"
-    - repoURL: __GITOPS_REPO_URL__
-      targetRevision: __GITOPS_REPO_REVISION__
+    - repoURL: https://github.com/ics-msrj/ics-ms-kubernetes-labs.git
+      targetRevision: main
       path: gitops/sealed-secrets/ack/online-boutique-packaged
   destination:
     server: https://kubernetes.default.svc
