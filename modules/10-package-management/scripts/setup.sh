@@ -154,6 +154,11 @@ kubectl create secret generic redis-cart-credentials \
 unset DEV_REDIS_PASSWORD
 kubectl rollout restart statefulset/redis-cart -n online-boutique-dev
 kubectl rollout restart deployment/cartservice -n online-boutique-dev
+log_info "Waiting for the dev overlay workloads to become ready..."
+for deployment in $(kubectl get deployment -n online-boutique-dev -o name); do
+  kubectl rollout status "${deployment}" -n online-boutique-dev --timeout=300s
+done
+kubectl rollout status statefulset/redis-cart -n online-boutique-dev --timeout=300s
 log_ok "dev overlay applied with a real (non-placeholder) redis-cart password"
 
 echo ""

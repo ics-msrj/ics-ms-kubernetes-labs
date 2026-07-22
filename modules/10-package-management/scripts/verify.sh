@@ -8,6 +8,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 GENERATED_DIR="${MODULE_DIR}/generated"
+REDIS_STORAGE_SIZE="${REDIS_STORAGE_SIZE:-}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 PASS=0; FAIL=0; WARN=0
@@ -49,18 +50,25 @@ for env in dev staging prod; do
 done
 
 echo ""
-echo -e "${BLUE}--- Overlay patches actually differ per environment ---${NC}"
+echo -e "${BLUE}--- Overlay Redis storage values ---${NC}"
 DEV_STORAGE=$(grep -A1 "storage:" "${GENERATED_DIR}/dev.yaml" 2>/dev/null | grep -m1 "storage:" | awk '{print $2}')
 PROD_STORAGE=$(grep -A1 "storage:" "${GENERATED_DIR}/prod.yaml" 2>/dev/null | grep -m1 "storage:" | awk '{print $2}')
-if [[ "$DEV_STORAGE" == "500Mi" ]]; then
-  check_pass "dev.yaml: redis-cart storage patched to 500Mi"
+if [[ -n "${REDIS_STORAGE_SIZE}" ]]; then
+  EXPECTED_DEV_STORAGE="${REDIS_STORAGE_SIZE}"
+  EXPECTED_PROD_STORAGE="${REDIS_STORAGE_SIZE}"
 else
-  check_fail "dev.yaml: redis-cart storage is '${DEV_STORAGE:-<none>}', expected 500Mi"
+  EXPECTED_DEV_STORAGE="500Mi"
+  EXPECTED_PROD_STORAGE="5Gi"
 fi
-if [[ "$PROD_STORAGE" == "5Gi" ]]; then
-  check_pass "prod.yaml: redis-cart storage patched to 5Gi"
+if [[ "$DEV_STORAGE" == "${EXPECTED_DEV_STORAGE}" ]]; then
+  check_pass "dev.yaml: redis-cart storage patched to ${EXPECTED_DEV_STORAGE}"
 else
-  check_fail "prod.yaml: redis-cart storage is '${PROD_STORAGE:-<none>}', expected 5Gi"
+  check_fail "dev.yaml: redis-cart storage is '${DEV_STORAGE:-<none>}', expected ${EXPECTED_DEV_STORAGE}"
+fi
+if [[ "$PROD_STORAGE" == "${EXPECTED_PROD_STORAGE}" ]]; then
+  check_pass "prod.yaml: redis-cart storage patched to ${EXPECTED_PROD_STORAGE}"
+else
+  check_fail "prod.yaml: redis-cart storage is '${PROD_STORAGE:-<none>}', expected ${EXPECTED_PROD_STORAGE}"
 fi
 
 echo ""

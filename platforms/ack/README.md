@@ -76,10 +76,13 @@ bash platforms/ack/scripts/ack-track.sh enable-scaling
 bash platforms/ack/scripts/ack-track.sh enable-observability
 bash platforms/ack/scripts/ack-track.sh enable-logging
 bash platforms/ack/scripts/ack-track.sh enable-packages
+bash platforms/ack/scripts/ack-track.sh verify-packages
 bash platforms/ack/scripts/ack-track.sh verify
 ```
 
-Run each native module's `verify.sh` after its corresponding ACK entrypoint.
+Run each native module's `verify.sh` after its corresponding ACK entrypoint,
+except Module 10, which uses `verify-packages` to account for ACK ESSD's
+minimum disk size.
 The ALB Gateway and Grafana listeners create billable ALB resources. Delete
 the Gateway before deleting the cluster or retiring the lab.
 
