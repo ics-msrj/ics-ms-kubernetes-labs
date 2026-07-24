@@ -146,6 +146,28 @@ nodes). Public-hostname routing — which Cloudflare hostname maps to which
 in-cluster Service — is dashboard-side config on the tunnel this token
 belongs to, not something this script or its manifest configures.
 
+## Dedicated Rancher Management Cluster
+
+The recommended architecture is standalone Azure VMs, not an AKS cluster or
+this workload/lab cluster. The dedicated implementation lives in
+[`management/`](management/): it provisions 2 Ubuntu 24.04 VMs (1
+control-plane + 1 worker) in a new, dedicated resource group
+(`rg-ics-ms-prod-sgp-001`, not `rg-nextops-prod-jkt-001` — confirmed live via
+`az group list` that nothing existing was suitable to reuse for an isolated
+management cluster), bootstraps a native kubeadm cluster across them
+(mirroring `modules/01-cluster-setup/scripts/setup-control-plane.sh` and
+`setup-worker.sh` — no control-plane taint removal needed, since Rancher now
+schedules on the dedicated worker instead), and installs Rancher on the
+worker behind a dedicated Cloudflare Tunnel — same Helm-based install
+pattern as `platforms/ack/management/`, adjusted for a single-worker
+cluster (1 Rancher replica, no pod anti-affinity). 2 nodes, not 1: an
+earlier single-node design was found live not to reliably survive a reboot
+(see `management/README.md`'s "Known issue" — cilium/cilium#44194).
+
+Use that track for the platform-management deployment. The Module 14
+equivalent below remains available only for curriculum parity on an isolated
+lab cluster; do not use it when this cluster already hosts a real workload.
+
 ## Optional: Multi-Cluster (Module 14 equivalent)
 
 Needs a second AKS cluster — same Terraform module, a different workspace:

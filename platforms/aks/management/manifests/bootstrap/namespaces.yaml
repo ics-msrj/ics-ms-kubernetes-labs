@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-system
+  labels:
+    platform.nextops.ai/component: rancher
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    platform.nextops.ai/component: certificate-management
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflare-tunnel
+  labels:
+    platform.nextops.ai/component: edge-connector

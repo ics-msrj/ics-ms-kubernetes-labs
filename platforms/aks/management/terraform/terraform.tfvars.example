@@ -1,0 +1,29 @@
+# Copy to terraform.tfvars and fill in your own values.
+# terraform.tfvars is git-ignored — never commit real subscription-tied values.
+
+# `az account show --query id -o tsv`. Pinned explicitly so this
+# configuration can't silently follow a later change to your active `az`
+# subscription (see variables.tf for why that matters).
+subscription_id = "00000000-0000-0000-0000-000000000000"
+location        = "southeastasia"
+
+# New, dedicated resource group — checked live via `az group list` that
+# nothing existing was suitable to reuse for an isolated management VM
+# (rg-nextops-prod-jkt-001 is the shared AKS workload RG, not this).
+resource_group_name   = "rg-ics-ms-prod-sgp-001"
+create_resource_group = true
+
+# Restrict to your own IP — never 0.0.0.0/0. curl ifconfig.me to find yours.
+admin_cidr = "203.0.113.10/32"
+
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# Split into control-plane (light) + worker (heavy: Rancher/cert-manager/
+# cloudflared) — see variables.tf for why this is 2 nodes, not 1. Check
+# `az vm list-skus --location southeastasia --size <size>` for availability
+# before changing either — many subscriptions start with 0 quota on some
+# generations (Dsv5 in particular).
+control_plane_vm_size = "Standard_D2ads_v7"
+worker_vm_size        = "Standard_D4ads_v7"
+os_disk_type           = "Premium_LRS"
+os_disk_size_gb        = 100

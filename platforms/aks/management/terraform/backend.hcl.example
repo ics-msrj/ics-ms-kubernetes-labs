@@ -1,0 +1,7 @@
+# Optional remote state configuration. Copy to backend.hcl and fill values;
+# never commit backend.hcl, state files, or access credentials.
+#
+# resource_group_name  = "replace-with-a-state-storage-resource-group"
+# storage_account_name = "replace-with-a-state-storage-account"
+# container_name       = "tfstate"
+# key                  = "kubernetes-learning-lab/aks-management/terraform.tfstate"

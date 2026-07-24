@@ -1,0 +1,31 @@
+# Public TLS terminates at Cloudflare. The tunnel forwards to this ClusterIP
+# Service over HTTP inside the management cluster; no Ingress or public LB is
+# created for Rancher.
+networkExposure:
+  type: none
+
+ingress:
+  enabled: false
+
+service:
+  type: ClusterIP
+  disableHTTP: false
+
+tls: external
+agentTLSMode: system-store
+
+# 1 replica, not 2: this is a single-node cluster (see ../../terraform/) —
+# platforms/ack/management's replicas:2 + preferred podAntiAffinity assumed a
+# 3-node cluster where spreading across nodes gives real HA. Here both
+# replicas would land on the same node, so a second replica adds no
+# resilience, only doubles resource usage. Revisit if this ever grows a
+# second node.
+replicas: 1
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
