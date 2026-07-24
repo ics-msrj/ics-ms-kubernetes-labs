@@ -17,6 +17,19 @@ live ACK cluster. Modules 03, 04, 08, 09, and 10 are implemented parity paths
 and must be validated in this order on the target cluster; do not describe
 them as provider-verified until their own module verification passes.
 
+## Dedicated Rancher Management Cluster
+
+The recommended architecture is a separate ACK cluster for Rancher, not this
+workload/lab cluster. The dedicated implementation lives in
+[`management/`](management/): it creates `ack-nextops-platform-jkt-001` with
+three fixed management nodes, runs Rancher behind a dedicated Cloudflare
+Tunnel, and imports this ACK cluster plus AKS and GKE as downstream clusters.
+
+Use that track for the platform-management deployment. The Module 14 adapter
+below remains available only for curriculum parity on an isolated lab cluster;
+do not use it when this cluster already hosts Online Boutique or other
+workloads.
+
 ## Foundation
 
 Provision an **ACK Managed Pro** cluster in `ap-southeast-5` through
@@ -91,10 +104,6 @@ bash platforms/ack/scripts/ack-track.sh run-backup-drill
 bash platforms/ack/scripts/ack-track.sh verify-backup
 # Deliberately remove the isolated restore and one-time backup afterward.
 bash platforms/ack/scripts/ack-track.sh cleanup-backup-drill
-bash platforms/ack/scripts/ack-track.sh enable-rancher
-# Configure the Cloudflare hostname printed by the command, import AKS and GKE,
-# then verify their Rancher Connected state.
-bash platforms/ack/scripts/ack-track.sh verify-rancher
 bash platforms/ack/scripts/ack-track.sh verify
 ```
 
@@ -128,12 +137,17 @@ NodePorts. It does not drain a node or modify the source namespace. Run
 Backup Center's `DeleteRequest` API. If this repository's earlier MinIO/Velero
 attempt exists, remove it separately with `cleanup-legacy-backup`.
 
-## Module 14: Rancher Multi-Cluster Management
+## Module 14: In-Cluster Rancher Lab Adapter
 
-ACK is the sole Rancher management cluster. Do not install another Rancher
-server on AKS or GKE. `enable-rancher` installs Rancher behind the existing
-Cloudflare Tunnel with external TLS termination; it creates no ALB, Gateway,
-or cert-manager dependency. Set these values in `config/ack.env` first:
+This is an in-cluster curriculum adapter, not the recommended management-plane
+architecture. For a dedicated Rancher server, follow
+[`management/README.md`](management/README.md). Do not run this adapter on an
+ACK cluster that hosts Online Boutique or production-like workloads.
+
+When using a deliberately isolated lab cluster, `enable-rancher` installs
+Rancher behind the existing Cloudflare Tunnel with external TLS termination;
+it creates no ALB, Gateway, or cert-manager dependency. Set these values in
+`config/ack.env` first:
 
 ```bash
 ACK_RANCHER_HOSTNAME="ack-rancher.next-ops.ai"

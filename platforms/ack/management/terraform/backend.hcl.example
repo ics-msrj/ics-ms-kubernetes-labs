@@ -1,0 +1,6 @@
+# Optional remote state configuration. Copy to backend.hcl and fill values;
+# never commit backend.hcl, state files, or access credentials.
+#
+# bucket  = "replace-with-private-oss-state-bucket"
+# prefix  = "kubernetes-learning-lab/ack-management/terraform.tfstate"
+# region  = "ap-southeast-5"

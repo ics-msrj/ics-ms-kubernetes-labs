@@ -1,0 +1,22 @@
+alicloud_profile = "ali-ics-ms-root"
+region           = "ap-southeast-5"
+cluster_name     = "ack-nextops-platform-jkt-001"
+cluster_spec     = "ack.pro.small"
+
+# Reuse the existing VPC and Resource Group, but reserve separate vSwitches
+# for the management cluster's control plane, nodes, and Terway Pods.
+resource_group_id          = "rg-replace-me"
+control_plane_vswitch_ids  = ["vsw-management-control-replace-me"]
+node_vswitch_ids           = ["vsw-management-node-replace-me"]
+pod_vswitch_ids            = ["vsw-management-pod-replace-me"]
+service_cidr               = "172.22.0.0/20"
+key_name                   = "replace-with-existing-keypair"
+encryption_provider_key_id = "key-replace-me"
+
+# Three fixed nodes are intentional. Do not add application node pools here.
+management_instance_types = ["ecs-replace-me"]
+management_node_count     = 3
+
+# Set false only when the existing VPC already provides equivalent egress.
+create_nat_gateway       = true
+api_server_public_access = true

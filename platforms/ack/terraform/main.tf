@@ -29,6 +29,14 @@ resource "alicloud_cs_managed_kubernetes" "this" {
   deletion_protection     = true
   encryption_provider_key = var.encryption_provider_key_id
 
+  # ACK retains ALBs created by the ALB Ingress Controller by default. Apply
+  # this setting before destroy so a lab teardown does not leave billable ALB
+  # resources behind. It does not affect the shared VPC or Resource Group.
+  delete_options {
+    delete_mode   = "delete"
+    resource_type = "ALB"
+  }
+
   tags = local.tags
 
   addons {
